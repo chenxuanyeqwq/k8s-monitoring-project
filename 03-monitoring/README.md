@@ -70,8 +70,4 @@ kubectl -n monitoring apply -f ../05-feishu-bridge/manifests/configmap.yaml
 kubectl -n monitoring rollout restart deployment/feishu-bridge
 ```
 
-也可以直接传 URL：`bash set_webhook.sh https://open.feishu.cn/...`。
-
-## 面试一句话
-
-> "我在 k3s 上自建了 Prometheus + Grafana + Alertmanager 监控栈：node_exporter 采节点指标，Prometheus 写告警规则（CPU>80% 持续1分钟），Alertmanager 通过 webhook 对接飞书机器人。实测用压测脚本打满 CPU，确认告警真实触发并路由到飞书接收端，同时配好了 Grafana 自动注入的监控面板。"
+也可以直接传 URL：`bash set_webhook.sh https://open.feishu.cn/...`
