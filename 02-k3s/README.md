@@ -1,4 +1,4 @@
-# 模块2：k3s 部署 + 滚动更新回滚演练（02-k3s）
+# 模块2：k3s 部署 + 滚动更新回滚演练
 
 把留言板容器化部署到本地 k3s 集群，实现 **Deployment 滚动更新 / 回滚 / Service / Ingress** 完整链路。
 
@@ -71,7 +71,7 @@ kubectl -n guestbook rollout undo deployment/guestbook
 - [x] 滚动更新 v1→v2：新 Pod 逐批顶上、旧 Pod 逐批终止（默认 maxSurge/maxUnavailable=25%）
 - [x] `rollout undo` 回滚：v2 副本终止、v1 恢复，页面回到 v1
 
-## 四个基础设施排障点（复盘重点）
+## 四个基础设施排障点
 
 1. **ghcr.io 被墙**：k3d 创建集群要拉 `ghcr.io/k3d-io/k3d-proxy`，国内连不上导致集群创建卡死。解法：从 `ghcr.m.daocloud.io` 拉取后 `docker tag` 成 ghcr.io 名。
 2. **k3s containerd 不走 Docker 加速**：k3s 内部用 containerd 直连 docker.io 拉镜像被墙，所有 Pod 卡 ContainerCreating（拉不到 pause 镜像）。解法：挂载 `registries.yaml` 把 docker.io 指向 DaoCloud。
