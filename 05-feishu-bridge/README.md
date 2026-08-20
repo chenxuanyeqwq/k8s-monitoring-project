@@ -54,10 +54,6 @@ curl -X POST http://127.0.0.1:18099/alert -H 'Content-Type: application/json' -d
 - [x] 端到端：CPU 压测 → Prometheus `HighCPUUsage` firing → Alertmanager → bridge 日志收到真实告警
 - [x] `send_resolved`：状态 `resolved` → 输出「已恢复」消息
 
-## 面试一句话
-
-> "我发现 Alertmanager 原生 webhook 格式和飞书不兼容，就写了个 50 行的 Python 转换桥部署到 k8s：接收 Alertmanager 的告警 JSON，转成飞书文本消息推送。实测压测打满 CPU，告警从 Prometheus 一路流到桥并正确解析。"
-
 ## 目录结构
 
 ```
