@@ -1,0 +1,10 @@
+# 示例文件：真实 configmap.yaml 会被 set_webhook.sh 注入你的 webhook，不提交到 git。
+# 部署前执行：bash 03-monitoring/set_webhook.sh（读取项目根 .env）
+# 然后 kubectl apply 本目录的 configmap.yaml。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: feishu-config
+  namespace: monitoring
+data:
+  FEISHU_WEBHOOK: ""

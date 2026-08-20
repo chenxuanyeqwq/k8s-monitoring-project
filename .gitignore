@@ -1,0 +1,16 @@
+# ⚠️ 敏感信息：含真实飞书 webhook，绝不能提交
+.env
+# feishu-bridge 的 ConfigMap 会被 set_webhook.sh 注入真实 webhook，改用 .example 占位
+05-feishu-bridge/manifests/configmap.yaml
+
+# Python
+__pycache__/
+*.pyc
+
+# 下载的工具二进制
+02-k3s/bin/
+
+# 日志与临时文件
+*.log
+*.tar
+.DS_Store

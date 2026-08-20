@@ -1,0 +1,41 @@
+# Deployment：声明式管理无状态应用副本
+# 滚动更新/回滚操作：
+#   kubectl -n guestbook set image deployment/guestbook guestbook=guestbook:v2
+#   kubectl -n guestbook rollout status deployment/guestbook
+#   kubectl -n guestbook rollout undo deployment/guestbook
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guestbook
+  namespace: guestbook
+  labels:
+    app: guestbook
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: guestbook
+  template:
+    metadata:
+      labels:
+        app: guestbook
+    spec:
+      containers:
+        - name: guestbook
+          image: guestbook:v1
+          imagePullPolicy: IfNotPresent   # 用 k3d image import 导入的本地镜像
+          ports:
+            - containerPort: 80
+          # 就绪探针：HTTP 探测通过后才加入 Service 负载，保证滚动更新不中断
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          emptyDir: {}   # 演示用；生产数据库应改用 PVC

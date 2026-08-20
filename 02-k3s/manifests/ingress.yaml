@@ -1,0 +1,21 @@
+# Ingress：7层路由，把外部请求按域名转发到 Service
+# k3s 默认装了 traefik 作为 Ingress Controller，外部访问入口是宿主机 8081 端口
+# 访问：curl -H "Host: guestbook.local" http://localhost:8081
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: guestbook-ing
+  namespace: guestbook
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: guestbook.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: guestbook-svc
+                port:
+                  number: 80

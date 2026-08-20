@@ -1,0 +1,87 @@
+# Prometheus：抓取指标 + 评估告警规则
+# 数据流：node_exporter:9100 --> Prometheus:9090 --> Alertmanager:9093 --> 飞书
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ["alertmanager.monitoring.svc.cluster.local:9093"]
+    rule_files:
+      - /etc/prometheus/rules.yml
+    scrape_configs:
+      - job_name: prometheus
+        static_configs:
+          - targets: ["localhost:9090"]
+      - job_name: node
+        static_configs:
+          - targets: ["node-exporter.monitoring.svc.cluster.local:9100"]
+  rules.yml: |
+    groups:
+      - name: node-alerts
+        rules:
+          # CPU 使用率 = 100 - 空闲率，5分钟平均 > 80% 持续 1 分钟触发
+          - alert: HighCPUUsage
+            expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "CPU 使用率过高"
+              description: "实例 {{ $labels.instance }} CPU 使用率超过 80%"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.53.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/prometheus
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: data
+              mountPath: /prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090

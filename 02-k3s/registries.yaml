@@ -1,0 +1,12 @@
+# k3s containerd 镜像加速配置
+#
+# 问题：k3s 内部用 containerd 直接从 docker.io 拉镜像，
+#       国内被墙导致所有 Pod 卡在 ContainerCreating（拉不到 pause sandbox 镜像）。
+# 解法：把 docker.io 的镜像请求指向 DaoCloud 加速源。
+#
+# 挂载方式（k3d 创建集群时）：
+#   --volume "E:/dev/k8s-project/02-k3s/registries.yaml:/etc/rancher/k3s/registries.yaml"
+mirrors:
+  docker.io:
+    endpoint:
+      - "https://docker.m.daocloud.io"

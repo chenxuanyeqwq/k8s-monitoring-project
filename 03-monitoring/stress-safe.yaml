@@ -1,0 +1,18 @@
+# 安全版 CPU 压测：限制最多用 16 核（80%），总占用停在 ~85% 触发告警，绝不打满
+# 节点容量 20 核，告警阈值 CPU>80%（>16 核），留出安全余量。
+# 用后删除：kubectl -n guestbook delete pod stress-safe
+apiVersion: v1
+kind: Pod
+metadata:
+  name: stress-safe
+  namespace: guestbook
+spec:
+  restartPolicy: Never
+  containers:
+    - name: stress
+      image: guestbook:v1
+      command: ["sh", "-c"]
+      args: ["for i in $(seq 1 $(nproc)); do (while :; do :; done) & done; sleep 600"]
+      resources:
+        limits:
+          cpu: "16"

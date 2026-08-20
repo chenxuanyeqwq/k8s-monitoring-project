@@ -1,0 +1,27 @@
+# feishu-bridge：Alertmanager 告警 → 飞书消息 的转换服务
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feishu-bridge
+  namespace: monitoring
+  labels:
+    app: feishu-bridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: feishu-bridge
+  template:
+    metadata:
+      labels:
+        app: feishu-bridge
+    spec:
+      containers:
+        - name: feishu-bridge
+          image: feishu-bridge:1.0
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: feishu-config
+          ports:
+            - containerPort: 8080

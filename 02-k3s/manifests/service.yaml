@@ -1,0 +1,13 @@
+# Service：给一组 Pod 提供稳定的访问入口（ClusterIP）
+# Ingress 通过它把流量转发到 3 个副本，k8s 自动负载均衡
+apiVersion: v1
+kind: Service
+metadata:
+  name: guestbook-svc
+  namespace: guestbook
+spec:
+  selector:
+    app: guestbook
+  ports:
+    - port: 80          # Service 暴露端口
+      targetPort: 80    # Pod 容器端口
