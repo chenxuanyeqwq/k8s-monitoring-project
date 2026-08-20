@@ -77,7 +77,3 @@ kubectl -n guestbook rollout undo deployment/guestbook
 2. **k3s containerd 不走 Docker 加速**：k3s 内部用 containerd 直连 docker.io 拉镜像被墙，所有 Pod 卡 ContainerCreating（拉不到 pause 镜像）。解法：挂载 `registries.yaml` 把 docker.io 指向 DaoCloud。
 3. **kubeconfig 用 host.docker.internal 连不上**：Windows 宿主解析不了。解法：改成 `127.0.0.1:<API端口>` + `insecure-skip-tls-verify`（本地开发集群常规做法）。
 4. **containerd 拉镜像 DNS 间歇失败**：部分镜像拉取命中 DNS 失败。解法：宿主机拉好后 `k3d image import` 灌入，containerd 直接用本地镜像，绕开网络。
-
-## 面试一句话
-
-> "我在本地 k3s 集群上部署了一个自写留言板：Deployment 管 3 个副本、Service 负载均衡、Ingress 用 traefik 暴露，实操了滚动更新（新 Pod 逐批顶上）和 `rollout undo` 回滚。过程中解决了国内网络的四个坑：ghcr.io 镜像源、k3s containerd 加速、kubeconfig 连不上、镜像拉取 DNS 抖动。"
