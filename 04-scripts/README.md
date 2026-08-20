@@ -34,8 +34,4 @@ DISK_THRESHOLD=85 FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/�
 **crontab 定时（每天凌晨 2 点）：**
 ```
 0 2 * * * /opt/scripts/log_cleanup.sh /app/logs 7
-```
-
-## 面试一句话
-
-> "我写了两个运维脚本：磁盘告警脚本用 Python 标准库检查挂载点使用率、超阈值通过飞书 webhook 推送告警；日志清理脚本用 find 定时清理过期日志，都配好了 crontab 定时任务。"
+``
