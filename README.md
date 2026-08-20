@@ -1,4 +1,4 @@
-# Docker + K8s 部署与监控 · 简历项目
+# Docker + K8s 部署与监控
 
 一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目，5 个模块层层递进。
 
@@ -12,7 +12,7 @@
 | 4. 运维脚本 | `04-scripts/` | 磁盘告警 + 日志清理脚本 | ✅ 本地实测通过 |
 | 5. 飞书桥 | `05-feishu-bridge/` | Alertmanager 告警 → 飞书消息 的转换服务（k8s Deployment） | ✅ 压测告警端到端到桥 |
 
-## 当前运行状态（2026-08-19）
+## 当前运行状态
 
 ```
 LNMP 留言板（compose）    http://localhost:8080
@@ -21,11 +21,11 @@ Grafana                   curl -H "Host: grafana.local" http://localhost:8081  (
 Prometheus                kubectl -n monitoring port-forward svc/prometheus 9090:9090
 ```
 
-## 项目主线（面试讲法）
+## 项目主线
 
 > **自建小型生产环境**：Ubuntu → Docker 容器化 → k3s 多副本部署 → Prometheus/Grafana 监控 → Alertmanager 飞书告警 → 自动化脚本。
 
-## 遇到的坑（复盘价值最高）
+## 遇到的坑
 
 1. Alpine 源连不上 → Dockerfile 构建卡死 → `sed` 换阿里云源
 2. MySQL 导入中文乱码 → `SET NAMES utf8mb4;`
