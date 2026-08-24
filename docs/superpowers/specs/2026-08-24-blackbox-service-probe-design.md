@@ -56,9 +56,11 @@ cron 每 5 分钟 → service_probe.py（Windows 宿主机，本机执行）
 
 沿用模块4/5 的统一格式：`{"msg_type":"text","content":{"text":"..."}}`
 
+> ⚠️ 消息文本**不用 emoji**：Windows GBK 控制台 `print` 含 emoji 会抛 `UnicodeEncodeError`（`disk_alert.py` 第 76 行注释有明确警告）。用文字标记 `[失败]` / `[已恢复]`。
+
 告警示例：
 ```
-[服务探测] ❌ k8s留言板 不可达
+[服务探测][失败] k8s留言板 不可达
 目标: http://localhost:8081 (Host: guestbook.local)
 失败原因: HTTP 502
 连续失败: 3 次
@@ -67,7 +69,7 @@ cron 每 5 分钟 → service_probe.py（Windows 宿主机，本机执行）
 
 恢复示例：
 ```
-[服务探测] ✅ k8s留言板 已恢复
+[服务探测][已恢复] k8s留言板
 目标: http://localhost:8081 (Host: guestbook.local)
 时间: 2026-08-24 11:00:00
 ```
