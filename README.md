@@ -13,7 +13,7 @@
 | 3. 监控告警 | `03-monitoring/` | node_exporter→Prometheus→Alertmanager→飞书，Grafana 面板 | ✅ CPU 打满告警真实触发 |
 | 4. 运维脚本 | `04-scripts/` | 磁盘告警 + 日志清理脚本 | ✅ 本地实测通过 |
 | 5. 飞书桥 | `05-feishu-bridge/` | Alertmanager 告警 → 飞书消息 的转换服务（k8s Deployment） | ✅ 压测告警端到端到桥 |
-| 6. 黑盒探测（**2.0**） | `04-scripts/service_probe.py` | 从外网视角探测留言板两个入口，连续失败 3 次推飞书告警、恢复推已恢复 | ✅ 停服/缩容实测告警+恢复 |
+| 6. 黑盒探测（**2.0**） | `06-blackbox/` | 从外网视角探测留言板两个入口，连续失败 3 次推飞书告警、恢复推已恢复 | ✅ 停服/缩容实测告警+恢复 |
 
 ## 当前运行状态
 
@@ -53,7 +53,7 @@ CPU 压测 → node_exporter → Prometheus(规则 firing) → Alertmanager
 
 ## v2.0 新增：黑盒监控（服务可用性探测）
 
-白盒（Prometheus）看的是**资源指标**，黑盒直接回答"**服务通不通**"。`04-scripts/service_probe.py` 从宿主机外网视角探测两个入口：
+白盒（Prometheus）看的是**资源指标**，黑盒直接回答"**服务通不通**"。`06-blackbox/service_probe.py` 从宿主机外网视角探测两个入口：
 
 ```
 cron 每 5 分钟 → service_probe.py
@@ -86,3 +86,4 @@ kubectl -n monitoring rollout restart deployment/feishu-bridge
 - [模块3：监控告警](03-monitoring/README.md)
 - [模块4：运维脚本](04-scripts/README.md)
 - [模块5：飞书桥](05-feishu-bridge/README.md)
+- [模块6：黑盒探测（2.0）](06-blackbox/README.md)

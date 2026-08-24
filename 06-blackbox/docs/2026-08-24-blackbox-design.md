@@ -2,7 +2,7 @@
 
 - 日期：2026-08-24
 - 状态：已由用户确认设计
-- 目标模块：`04-scripts/`
+- 目标模块：`06-blackbox/`
 - 关联：模块4 已有 `disk_alert.py`（白盒磁盘巡检，独立脚本直推飞书）
 
 ---
@@ -96,7 +96,7 @@ cron 每 5 分钟 → service_probe.py（Windows 宿主机，本机执行）
 ## 8. 产出文件
 
 ```
-04-scripts/
+06-blackbox/
 ├── disk_alert.py        (已有，不改)
 ├── log_cleanup.sh       (已有，不改)
 ├── service_probe.py     (新增，约 80~100 行，纯标准库)

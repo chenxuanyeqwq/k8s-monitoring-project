@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 为项目新增 `04-scripts/service_probe.py` 黑盒探测脚本：从宿主机外网视角探测 LNMP(:8080) 与 k8s(:8081+Host头) 两个留言板入口，连续失败 3 次推飞书告警，恢复推"已恢复"。
+**Goal:** 为项目新增 `06-blackbox/service_probe.py` 黑盒探测脚本：从宿主机外网视角探测 LNMP(:8080) 与 k8s(:8081+Host头) 两个留言板入口，连续失败 3 次推飞书告警，恢复推"已恢复"。
 
 **Architecture:** 纯标准库 Python 脚本，复用 `disk_alert.py` 的 `.env` + 飞书推送模式。核心状态机抽成纯函数 `apply_probe_result`（可单测），`main()` 负责探测→状态转移→消息推送→状态文件落盘。由 cron/Windows 任务计划定时调用（外部调度，脚本本身单次执行）。
 
@@ -17,16 +17,16 @@
 - 状态文件 `service_probe_state.json` 位于脚本同目录，记录每个目标的 `fail_count` 与 `status`。
 - 两个目标独立判断、独立告警。
 - Windows 下用 `python` 命令（`python3` 是 Store 桩，见项目笔记坑 #9）。
-- 实现完成后同步更新 `04-scripts/README.md`，并把 `service_probe_state.json` 加入 `.gitignore`。
+- 实现完成后同步更新 `06-blackbox/README.md`，并把 `service_probe_state.json` 加入 `.gitignore`。
 
 ---
 
 ### Task 1: TDD 实现状态机 + 完整脚本
 
 **Files:**
-- Create: `04-scripts/test_service_probe.py`
-- Create: `04-scripts/service_probe.py`
-- Modify: `.gitignore`（追加 `04-scripts/service_probe_state.json`）
+- Create: `06-blackbox/test_service_probe.py`
+- Create: `06-blackbox/service_probe.py`
+- Modify: `.gitignore`（追加 `06-blackbox/service_probe_state.json`）
 
 **Interfaces:**
 - Consumes: 无（首个任务）。
@@ -41,7 +41,7 @@
 
 - [ ] **Step 1: 写失败的单元测试**
 
-创建 `04-scripts/test_service_probe.py`：
+创建 `06-blackbox/test_service_probe.py`：
 
 ```python
 import unittest
@@ -93,11 +93,11 @@ if __name__ == "__main__":
 - [ ] **Step 2: 运行测试，确认失败**
 
 ```bash
-cd /e/dev/k8s-project/04-scripts && python -m unittest test_service_probe -v
+cd /e/dev/k8s-project/06-blackbox && python -m unittest test_service_probe -v
 ```
 Expected: FAIL —— `ModuleNotFoundError: No module named 'service_probe'`。
 
-- [ ] **Step 3: 实现 `04-scripts/service_probe.py`**
+- [ ] **Step 3: 实现 `06-blackbox/service_probe.py`**
 
 ```python
 #!/usr/bin/env python3
@@ -268,7 +268,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: 运行测试，确认通过**
 
 ```bash
-cd /e/dev/k8s-project/04-scripts && python -m unittest test_service_probe -v
+cd /e/dev/k8s-project/06-blackbox && python -m unittest test_service_probe -v
 ```
 Expected: 6 个测试全部 PASS。
 
@@ -278,13 +278,13 @@ Expected: 6 个测试全部 PASS。
 
 ```
 # 黑盒探测脚本的运行状态文件
-04-scripts/service_probe_state.json
+06-blackbox/service_probe_state.json
 ```
 
 - [ ] **Step 6: 提交**
 
 ```bash
-cd /e/dev/k8s-project && git add 04-scripts/service_probe.py 04-scripts/test_service_probe.py .gitignore && git commit -m "feat: 新增黑盒探测脚本 service_probe.py（含状态机单测）"
+cd /e/dev/k8s-project && git add 06-blackbox/service_probe.py 06-blackbox/test_service_probe.py .gitignore && git commit -m "feat: 新增黑盒探测脚本 service_probe.py（含状态机单测）"
 ```
 
 ---
@@ -292,7 +292,7 @@ cd /e/dev/k8s-project && git add 04-scripts/service_probe.py 04-scripts/test_ser
 ### Task 2: LNMP 黑盒链路集成验证（正常态 + 故障 + 恢复）
 
 **Files:**
-- 无新增文件（操作验证）。可能修改 `04-scripts/service_probe_state.json`（运行时状态，已 gitignore）。
+- 无新增文件（操作验证）。可能修改 `06-blackbox/service_probe_state.json`（运行时状态，已 gitignore）。
 
 **Interfaces:**
 - Consumes: Task 1 的 `service_probe.py`。
@@ -303,8 +303,8 @@ cd /e/dev/k8s-project && git add 04-scripts/service_probe.py 04-scripts/test_ser
 - [ ] **Step 1: 清理状态文件，确认正常态静默**
 
 ```bash
-rm -f /e/dev/k8s-project/04-scripts/service_probe_state.json
-cd /e/dev/k8s-project/04-scripts && python service_probe.py
+rm -f /e/dev/k8s-project/06-blackbox/service_probe_state.json
+cd /e/dev/k8s-project/06-blackbox && python service_probe.py
 ```
 Expected: 输出两行 `[INFO] LNMP留言板 正常 (HTTP 200)` 和 `[INFO] k8s留言板 正常 (HTTP 200)`；不推送飞书。
 
@@ -312,14 +312,14 @@ Expected: 输出两行 `[INFO] LNMP留言板 正常 (HTTP 200)` 和 `[INFO] k8s�
 
 ```bash
 docker compose -f /e/dev/k8s-project/01-lnmp/docker-compose.yml stop lnmp-nginx
-cd /e/dev/k8s-project/04-scripts && python service_probe.py
+cd /e/dev/k8s-project/06-blackbox && python service_probe.py
 ```
 Expected: `[WARN] LNMP留言板 第 1 次失败 (...)`，不推送（未达阈值）。
 
 - [ ] **Step 3: 连续跑满 3 次，触发告警**
 
 ```bash
-cd /e/dev/k8s-project/04-scripts && python service_probe.py && python service_probe.py
+cd /e/dev/k8s-project/06-blackbox && python service_probe.py && python service_probe.py
 ```
 Expected: 第 2 次输出 `[WARN] ... 第 2 次失败`，第 3 次输出 `[ALERT] LNMP留言板 不可达` + `已推送飞书 (HTTP 200)`。**飞书群收到 `[服务探测][失败] LNMP留言板 不可达`**。
 
@@ -327,7 +327,7 @@ Expected: 第 2 次输出 `[WARN] ... 第 2 次失败`，第 3 次输出 `[ALERT
 
 ```bash
 docker compose -f /e/dev/k8s-project/01-lnmp/docker-compose.yml start lnmp-nginx
-cd /e/dev/k8s-project/04-scripts && python service_probe.py
+cd /e/dev/k8s-project/06-blackbox && python service_probe.py
 ```
 Expected: 输出 `[RECOVER] LNMP留言板 已恢复` + `已推送飞书 (HTTP 200)`。**飞书群收到 `[服务探测][已恢复] LNMP留言板`**。
 
@@ -336,12 +336,12 @@ Expected: 输出 `[RECOVER] LNMP留言板 已恢复` + `已推送飞书 (HTTP 20
 再次执行 Step 2（停 nginx），连跑 4 次脚本：
 ```bash
 docker compose -f /e/dev/k8s-project/01-lnmp/docker-compose.yml stop lnmp-nginx
-cd /e/dev/k8s-project/04-scripts && python service_probe.py && python service_probe.py && python service_probe.py && python service_probe.py
+cd /e/dev/k8s-project/06-blackbox && python service_probe.py && python service_probe.py && python service_probe.py && python service_probe.py
 ```
 Expected: 第 3 次触发一次 `[ALERT]`；**第 4 次只输出 `[WARN] ... 第 4 次失败`，不重复推送**。然后恢复：
 ```bash
 docker compose -f /e/dev/k8s-project/01-lnmp/docker-compose.yml start lnmp-nginx
-cd /e/dev/k8s-project/04-scripts && python service_probe.py
+cd /e/dev/k8s-project/06-blackbox && python service_probe.py
 ```
 
 - [ ] **Step 6: 提交**
@@ -366,7 +366,7 @@ cd /e/dev/k8s-project && git add -A && git commit -m "test: 黑盒探测 LNMP �
 - [ ] **Step 1: 确认正常态**
 
 ```bash
-cd /e/dev/k8s-project/04-scripts && python service_probe.py
+cd /e/dev/k8s-project/06-blackbox && python service_probe.py
 ```
 Expected: `[INFO] k8s留言板 正常 (HTTP 200)`。
 
@@ -374,7 +374,7 @@ Expected: `[INFO] k8s留言板 正常 (HTTP 200)`。
 
 ```bash
 kubectl -n guestbook scale deployment guestbook --replicas=0
-cd /e/dev/k8s-project/04-scripts && python service_probe.py && python service_probe.py && python service_probe.py
+cd /e/dev/k8s-project/06-blackbox && python service_probe.py && python service_probe.py && python service_probe.py
 ```
 Expected: 第 3 次输出 `[ALERT] k8s留言板 不可达 (HTTP 502 或 连接失败)` + `已推送飞书 (HTTP 200)`。**飞书群收到 `[服务探测][失败] k8s留言板 不可达`**。
 
@@ -384,7 +384,7 @@ Expected: 第 3 次输出 `[ALERT] k8s留言板 不可达 (HTTP 502 或 连接�
 kubectl -n guestbook scale deployment guestbook --replicas=3
 # 等 Pod 就绪
 kubectl -n guestbook rollout status deployment/guestbook
-cd /e/dev/k8s-project/04-scripts && python service_probe.py
+cd /e/dev/k8s-project/06-blackbox && python service_probe.py
 ```
 Expected: `[RECOVER] k8s留言板 已恢复` + `已推送飞书 (HTTP 200)`。**飞书群收到 `[服务探测][已恢复] k8s留言板`**。
 
@@ -399,14 +399,14 @@ cd /e/dev/k8s-project && git add -A && git commit -m "test: 黑盒探测 k8s 链
 ### Task 4: 更新 README 与收尾
 
 **Files:**
-- Modify: `04-scripts/README.md`（追加 service_probe.py 一节）。
+- Modify: `06-blackbox/README.md`（追加 service_probe.py 一节）。
 - Modify: 桌面教学笔记 `C:\Users\chenxuanye\Desktop\DockerK8s监控项目_形象化教学笔记.md`（把"没做黑盒"改为"已补黑盒"）。
 
 **Interfaces:**
 - Consumes: Task 1 的 `service_probe.py` 最终行为。
 - Produces: 面向使用者/复习者的文档。
 
-- [ ] **Step 1: 在 `04-scripts/README.md` 追加一节**
+- [ ] **Step 1: 在 `06-blackbox/README.md` 追加一节**
 
 在 `log_cleanup.sh` 一节之后、`## 面试一句话` 之前插入：
 
@@ -426,7 +426,7 @@ PROBE_FAIL_THRESHOLD=3 python service_probe.py
 
 **crontab 定时（每 5 分钟一次）：**
 ```
-*/5 * * * * cd /e/dev/k8s-project/04-scripts && python service_probe.py >> /var/log/service_probe.log 2>&1
+*/5 * * * * cd /e/dev/k8s-project/06-blackbox && python service_probe.py >> /var/log/service_probe.log 2>&1
 ```
 
 探测目标：
@@ -476,4 +476,4 @@ cd /e/dev/k8s-project && git add -A && git commit -m "docs: README 补充黑盒�
 git -C /e/dev/k8s-project log --oneline -6
 git -C /e/dev/k8s-project status
 ```
-Expected: 新增 `service_probe.py`、`test_service_probe.py`，修改 `.gitignore`、`04-scripts/README.md`；工作区干净。
+Expected: 新增 `service_probe.py`、`test_service_probe.py`，修改 `.gitignore`、`06-blackbox/README.md`；工作区干净。
