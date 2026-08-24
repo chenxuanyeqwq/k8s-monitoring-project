@@ -14,3 +14,6 @@ __pycache__/
 *.log
 *.tar
 .DS_Store
+
+# 黑盒探测脚本的运行状态文件
+04-scripts/service_probe_state.json
