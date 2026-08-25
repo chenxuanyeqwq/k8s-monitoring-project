@@ -9,11 +9,13 @@
 云服务器 8.217.195.115
 ├─ 业务：compose LNMP 留言板 :8080（已有）
 └─ 监控（本模块，docker-compose.monitoring.yml）
-    ├─ node-exporter   :9100  内部  采集云服务器 CPU/内存/磁盘/网络（pid:host + 挂载 /proc /sys）
-    ├─ prometheus      :9090  内部  抓 node-exporter + 告警规则（HighCPUUsage / HighDiskUsage）
-    ├─ alertmanager    :9093  内部  去重路由 → feishu-bridge
-    ├─ feishu-bridge   :8080  内部  复用 05 代码，Alertmanager 格式 → 飞书格式
-    └─ grafana         :3000  公网  可视化（CPU/内存/磁盘三块面板，provisioning 自动配）
+    ├─ node-exporter    :9100  内部  采集云服务器 CPU/内存/磁盘/网络（pid:host + 挂载 /proc /sys）
+    ├─ nginx-exporter   :9113  内部  抓 nginx/stub_status（请求/5xx/连接）—— 应用层
+    ├─ mysqld-exporter  :9104  内部  连 MySQL（查询/连接/慢查询）—— 应用层
+    ├─ prometheus       :9090  内部  抓 node/nginx/mysql + 告警规则（CPU/磁盘/5xx/MySQL）
+    ├─ alertmanager     :9093  内部  去重路由 → feishu-bridge
+    ├─ feishu-bridge    :8080  内部  复用 05 代码，Alertmanager 格式 → 飞书格式
+    └─ grafana          :3000  公网  可视化（CPU/内存/磁盘 + nginx/mysql 面板，provisioning 自动配）
 └─ 宿主机 cron
     ├─ service_probe.py   每 5 分钟  黑盒探公网入口（06-blackbox，挪来常驻）
     └─ memory_report.py   每天 9:00  读 /proc/meminfo 推飞书每日内存报告

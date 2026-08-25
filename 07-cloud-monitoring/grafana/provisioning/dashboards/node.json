@@ -28,6 +28,42 @@
         {"expr": "(1 - node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"}) * 100", "legendFormat": "{{instance}}"}
       ],
       "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}, "overrides": []}
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Nginx 请求率",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(rate(nginx_http_requests_total[5m]))", "legendFormat": "请求/秒"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps", "min": 0}, "overrides": []}
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Nginx 5xx 错误率",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(rate(nginx_http_requests_total{code=~\"^5\"}[5m])) / clamp_min(sum(rate(nginx_http_requests_total[5m])), 0.001) * 100", "legendFormat": "5xx 率"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}, "overrides": []}
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "MySQL 查询率",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(rate(mysql_global_status_questions[5m]))", "legendFormat": "查询/秒"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "reqps", "min": 0}, "overrides": []}
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "MySQL 活跃连接",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "mysql_global_status_threads_connected", "legendFormat": "连接数"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": []}
     }
   ],
   "refresh": "10s",

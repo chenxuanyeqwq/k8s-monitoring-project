@@ -17,3 +17,21 @@ groups:
         annotations:
           summary: "云服务器磁盘使用率过高"
           description: "根分区使用率超过 80%"
+      - alert: High5xxRate
+        expr: |
+          sum(rate(nginx_http_requests_total{code=~"^5"}[5m])) by (instance)
+          / clamp_min(sum(rate(nginx_http_requests_total[5m])) by (instance), 0.001) > 0.05
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Nginx 5xx 错误率过高"
+          description: "实例 {{ $labels.instance }} 5xx 率超过 5%"
+      - alert: MySQLDown
+        expr: mysql_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MySQL 不可达"
+          description: "mysqld-exporter 无法连接数据库"

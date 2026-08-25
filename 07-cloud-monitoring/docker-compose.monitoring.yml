@@ -57,6 +57,26 @@ services:
       - '3000:3000'
     restart: unless-stopped
 
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.1.0
+    container_name: cm-nginx-exporter
+    command: ['-nginx.scrape-uri=http://nginx/stub_status']
+    networks: [default, lnmp]
+    restart: unless-stopped
+
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.15.1
+    container_name: cm-mysqld-exporter
+    environment:
+      DATA_SOURCE_NAME: "exporter:exporter123@(db:3306)/"
+    networks: [default, lnmp]
+    restart: unless-stopped
+
+networks:
+  lnmp:
+    external: true
+    name: 01-lnmp_default
+
 volumes:
   prom_data:
   graf_data:
