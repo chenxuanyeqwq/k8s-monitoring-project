@@ -65,7 +65,7 @@ services:
     restart: unless-stopped
 
   mysqld-exporter:
-    image: prom/mysqld-exporter:v0.15.1
+    image: prom/mysqld-exporter:v0.14.0   # v0.15 有 .my.cnf 解析坑,用 v0.14 直接吃 DATA_SOURCE_NAME
     container_name: cm-mysqld-exporter
     environment:
       DATA_SOURCE_NAME: "exporter:exporter123@(db:3306)/"
