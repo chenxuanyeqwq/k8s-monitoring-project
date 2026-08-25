@@ -1,6 +1,7 @@
 # 模块6：黑盒探测（06-blackbox）
 
 **v2.0 新增**：服务可用性黑盒监控，补 Prometheus 白盒资源监控的盲区——白盒看"机器指标"，黑盒直接回答"**服务通不通**"。
+**v3.2 更新**：探测目标改为**云端公网入口**（`http://8.217.195.115:8080`），脚本从本地挪到**云服务器常驻**（cron 每 5 分钟）。
 
 ## service_probe.py — 服务可用性探测
 
@@ -19,9 +20,14 @@ PROBE_FAIL_THRESHOLD=3 python service_probe.py
 */5 * * * * cd /e/dev/k8s-project/06-blackbox && python service_probe.py >> /var/log/service_probe.log 2>&1
 ```
 
-**探测目标：**
-- `http://localhost:8080` → LNMP 留言板
-- `http://localhost:8081` + `Host: guestbook.local` → k8s 留言板（Ingress→Service→Pod 全链路）
+**探测目标（v3.2 起，云服务器常驻）：**
+- `http://8.217.195.115:8080` → 云端 LNMP 留言板（公网入口，走 安全组→nginx→php→mysql 全链路）
+- 连续失败 3 次推飞书告警，恢复推"已恢复"，正常静默
+
+**服务器 cron（每 5 分钟）：**
+```
+*/5 * * * * cd /opt/k8s-project/06-blackbox && python3 service_probe.py >> /var/log/service_probe.log 2>&1
+```
 
 ## 实现要点
 
