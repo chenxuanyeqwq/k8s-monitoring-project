@@ -1,0 +1,19 @@
+groups:
+  - name: cloud-alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "云服务器 CPU 使用率过高"
+          description: "实例 {{ $labels.instance }} CPU 使用率超过 80%"
+      - alert: HighDiskUsage
+        expr: (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 > 80
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "云服务器磁盘使用率过高"
+          description: "根分区使用率超过 80%"

@@ -1,0 +1,11 @@
+route:
+  receiver: feishu
+  group_by: ['alertname']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+receivers:
+  - name: feishu
+    webhook_configs:
+      - url: 'http://feishu-bridge:8080/alert'
+        send_resolved: true
