@@ -23,11 +23,13 @@ try {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name    = trim($_POST['name'] ?? '');
     $content = trim($_POST['content'] ?? '');
+    $inserted = false;
     if ($name !== '' && $content !== '') {
         $stmt = $pdo->prepare("INSERT INTO messages (name, content) VALUES (?, ?)");
         $stmt->execute([$name, $content]);
+        $inserted = true;
     }
-    header('Location: index.php?posted=1');
+    header('Location: index.php' . ($inserted ? '?posted=1' : ''));
     exit;
 }
 
@@ -120,7 +122,7 @@ li.msg:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
 <?php endif; ?>
 <main>
   <header class="site">
-    <h1>📌 LNMP 留言板</h1>
+    <h1>LNMP 留言板</h1>
     <p class="meta">Nginx → PHP-FPM → MySQL · 数据存 MySQL,删容器不丢</p>
   </header>
 
