@@ -24,7 +24,7 @@
 │   ├─ node-exporter   :9100  内部   采集机器 CPU/内存/磁盘/网络
 │   ├─ prometheus      :9090  内部   抓 node-exporter + 告警规则
 │   ├─ alertmanager    :9093  内部   告警去重路由
-│   ├─ feishu-bridge   :8088  内部   转飞书格式（复用 05 代码）
+│   ├─ feishu-bridge   :8080  内部   转飞书格式（复用 05 代码）
 │   └─ grafana         :3000  公网   可视化（改默认密码）
 └─ 宿主机 cron（新增）
     ├─ service_probe.py   每 5 分钟  探 :8080 可用性 → 飞书（从本地挪来）
@@ -37,7 +37,7 @@
 |------|------|------|------|
 | 8080 | LNMP | ✅ 已开 | 留言板 |
 | **3000** | Grafana | ✅ 新增开 | 可视化入口 |
-| 9100/9090/9093/8088 | 监控各服务 | ❌ 不开 | 仅 compose 内部互访 |
+| 9100/9090/9093/8080 | 监控各服务 | ❌ 不开 | 仅 compose 内部互访 |
 
 - **安全组只新增放行 3000**
 - Grafana 默认密码 `admin/admin` → 改为环境变量注入的强密码
@@ -60,14 +60,14 @@
 
 ### alertmanager（告警去重路由）
 - 镜像 `prom/alertmanager`
-- route → receiver `feishu`，webhook 指向 `http://feishu-bridge:8088/alert`，`send_resolved: true`
+- route → receiver `feishu`，webhook 指向 `http://feishu-bridge:8080/alert`，`send_resolved: true`
 - `group_by: ['alertname']`、`repeat_interval: 1h` 防轰炸
 
 ### feishu-bridge（格式转换，复用 05 代码）
 - **复用 `05-feishu-bridge/bridge.py` + Dockerfile**，打成 compose 服务
 - 作用：Alertmanager 原生 webhook 格式飞书不收 → 转成 `{"msg_type":"text",...}` 再推飞书
 - 环境变量 `FEISHU_WEBHOOK` 从 `.env` 读取
-- compose 网络内 `feishu-bridge:8088`，仅 Alertmanager 访问
+- compose 网络内 `feishu-bridge:8080`，仅 Alertmanager 访问
 
 ### grafana（可视化）
 - 镜像 `grafana/grafana`，provisioning 自动配

@@ -58,6 +58,7 @@ def load_webhook():
 
 
 def send_feishu(text, webhook):
+    """推送文本到飞书。飞书业务失败(code!=0)时抛异常。"""
     payload = {"msg_type": "text", "content": {"text": text}}
     req = urllib.request.Request(
         webhook,
@@ -65,7 +66,12 @@ def send_feishu(text, webhook):
         headers={"Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=10) as resp:
-        return resp.status
+        body = resp.read().decode("utf-8", "replace")
+    data = json.loads(body)
+    code = data.get("code")
+    if code != 0:
+        raise RuntimeError("飞书业务错误: code=%s, msg=%s" % (code, data.get("msg", "")))
+    return code
 
 
 def main():
@@ -83,8 +89,11 @@ def main():
         print(text)
         print("(未配置 FEISHU_WEBHOOK,仅打印)")
         return
-    code = send_feishu(text, webhook)
-    print("已推送飞书 (HTTP %d)\n%s" % (code, text))
+    try:
+        code = send_feishu(text, webhook)
+        print("已推送飞书 (code=%d)\n%s" % (code, text))
+    except Exception as e:
+        print("飞书推送失败: %s\n%s" % (e, text))
 
 
 if __name__ == "__main__":
