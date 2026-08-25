@@ -2,7 +2,7 @@
 
 一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目，现已**上云 + 全链路监控告警**。
 
-> 📌 **当前版本 v3.2**：LNMP 上云公网可访问 + CI/CD 自动部署 + **云监控告警**（Grafana 看云服务器资源 + 飞书 CPU/网站/每日内存预检）+ 前端清爽版。v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块全链路。
+> 📌 **当前版本 v3.3**：LNMP 上云公网可访问 + CI/CD 自动部署 + **云监控告警 + 应用层监控**（Grafana 看云服务器资源 + 网站本身指标 + 飞书三层预检）+ 前端清爽版。v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
 
 ## 模块总览
 
@@ -14,7 +14,7 @@
 | 4. 运维脚本 | `04-scripts/` | 磁盘告警 + 日志清理脚本 | ✅ 本地实测通过 |
 | 5. 飞书桥 | `05-feishu-bridge/` | Alertmanager 告警 → 飞书消息 的转换服务（k8s Deployment） | ✅ 压测告警端到端到桥 |
 | 6. 黑盒探测（**2.0**） | `06-blackbox/` | 从外网视角探测留言板入口，连续失败 3 次推飞书告警、恢复推已恢复（v3.2 起在云服务器常驻） | ✅ 停服实测告警+恢复 |
-| 7. 云监控告警（**v3.2**） | `07-cloud-monitoring/` | 云服务器 compose 监控栈：node-exporter→Prometheus→Alertmanager→feishu-bridge→飞书 + Grafana 面板 + 每日内存报告 | ✅ 压测实测告警+恢复+内存报告推送 |
+| 7. 云监控告警（**v3.2/v3.3**） | `07-cloud-monitoring/` | 云服务器 compose 监控栈：node-exporter(机器) + nginx/mysql exporter(应用) → Prometheus→Alertmanager→飞书 + Grafana 7 面板 + 每日内存报告 | ✅ 三层监控全 up,告警/恢复/内存报告实测 |
 
 ## 当前运行状态
 
@@ -45,15 +45,17 @@ Prometheus(本地)           kubectl -n monitoring port-forward svc/prometheus 9
 10. **Grafana provisioning 面板不加载**（v3.2）→ scp 上传文件 root 权限、容器非 root 读不了 → `chmod -R a+rX` + 重启 Grafana
 11. **飞书 webhook 成功响应字段是 `StatusCode`**（非小写 `code`）→ 判断成功要兼容两个字段，否则成功被误判为失败
 
-## 告警链路
+## 告警链路（三层监控 → 飞书）
 
 ```
-CPU 压测 → node_exporter → Prometheus(规则 firing) → Alertmanager
-    → feishu-bridge(转换格式) → 飞书群 webhook
+机器层  CPU/磁盘/内存    → node-exporter      ┐
+应用层  Nginx 请求/5xx   → nginx-exporter      ├→ Prometheus(规则 firing)
+        MySQL 查询/连接  → mysqld-exporter     ┘      → Alertmanager
+可用性  黑盒探活         → service_probe.py(直推)     → feishu-bridge → 飞书群
 ```
 
-- 本地(k8s)链路见 `03-monitoring/manifests/` + `05-feishu-bridge/manifests/`
-- 云服务器(compose)链路见 `07-cloud-monitoring/`
+- 告警规则：`HighCPUUsage` / `HighDiskUsage` / `High5xxRate` / `MySQLDown`
+- 云服务器(compose)链路见 `07-cloud-monitoring/`；本地(k8s)链路见 `03-monitoring/manifests/` + `05-feishu-bridge/manifests/`
 - 真实飞书 webhook 统一填项目根 **`.env`**，**两端链路均已实测：飞书群真实收到告警** ✅
 
 ## v2.0 新增：黑盒监控（服务可用性探测）
@@ -83,7 +85,7 @@ GitHub push → Actions(拉代码) → scp 上传 01-lnmp → SSH 执行 deploy.
 - **关键文件**：`.github/workflows/deploy.yml`（CI/CD）、`01-lnmp/deploy.sh`（构建+部署+带重试自检）、`docs/云服务器部署手册.md`
 - **安全**：服务器密码存 GitHub Secrets（不落库）；`.env` 由 gitignore 保护不入库
 
-## v3.1/v3.2 新增：前端优化 + 云监控告警
+## v3.1/v3.2/v3.3 新增：前端优化 + 云监控告警 + 应用层监控
 
 ### v3.1 前端清爽 SaaS 版
 留言板前端整体重写（单文件 `01-lnmp/php/www/index.php`）：CSS 设计令牌、友好时间（PHP ISO + JS 相对时间）、提交 Toast（PRG 防重复提交）、精致空状态、移动端适配。安全防护（prepare + htmlspecialchars + PRG）全程保持。
@@ -102,6 +104,20 @@ node-exporter → Prometheus(规则) → Alertmanager → feishu-bridge → 飞�
 - **每日内存报告**：`memory_report.py` cron 每天 9 点推飞书（实测 code=0 推送成功）
 - **安全**：安全组仅放行 8080/3000；Grafana 改默认密码（fail-fast 必填）；监控内部端口不暴露公网
 - 部署手册：`docs/云服务器监控部署手册.md`
+
+### v3.3 应用层监控（网站本身）
+在三层监控的**机器层**之上补**应用层**，看网站内部指标：
+```
+┌─ 机器层  node-exporter        → CPU/内存/磁盘
+├─ 应用层  nginx-exporter:9113  → Nginx 请求率/5xx/连接  ← v3.3
+│         mysqld-exporter:9104 → MySQL 查询/连接
+└─ 可用性  黑盒探活            → 每 5 分钟探公网
+```
+- nginx 开 `stub_status`（`allow 172.16.0.0/12`）；MySQL 建只读账号 `exporter`
+- exporter 接入 `01-lnmp_default` 外部网络，按服务名访问 `nginx`/`db`（跨 compose）
+- **Grafana 7 块面板**（新增 Nginx 请求率/5xx、MySQL 查询/连接），实测有数据
+- **新增告警**：`High5xxRate`（>5% 1min）+ `MySQLDown`，走飞书链路
+- 坑：mysqld-exporter 用 **v0.14.0**（v0.15 有 .my.cnf 解析坑）；改 prometheus.yml 要 `docker restart cm-prometheus`；scp 更新文件后 `chmod -R a+rX grafana/` + 重启 Grafana
 
 ## 飞书 webhook 配置
 
