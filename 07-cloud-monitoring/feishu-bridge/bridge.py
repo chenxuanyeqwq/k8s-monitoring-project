@@ -96,11 +96,12 @@ class Handler(BaseHTTPRequestHandler):
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     body = resp.read().decode("utf-8", "replace")
                 resp_data = json.loads(body)
-                if resp_data.get("code") != 0:
-                    print(f"{log_prefix} → 飞书业务错误: code={resp_data.get('code')}, msg={resp_data.get('msg')}")
+                status_code = resp_data.get("StatusCode", resp_data.get("code"))
+                if status_code != 0:
+                    print(f"{log_prefix} → 飞书业务错误: code={status_code}, msg={resp_data.get('msg')}")
                     self._reply(500, "feishu business error")
                     return
-                print(f"{log_prefix} → 已推送飞书 (code={resp_data.get('code')})")
+                print(f"{log_prefix} → 已推送飞书 (code={status_code})")
             except Exception as e:
                 print(f"{log_prefix} → 飞书推送失败: {e}")
                 self._reply(500, "feishu push failed")

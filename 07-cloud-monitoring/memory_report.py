@@ -68,10 +68,10 @@ def send_feishu(text, webhook):
     with urllib.request.urlopen(req, timeout=10) as resp:
         body = resp.read().decode("utf-8", "replace")
     data = json.loads(body)
-    code = data.get("code")
-    if code != 0:
-        raise RuntimeError("飞书业务错误: code=%s, msg=%s" % (code, data.get("msg", "")))
-    return code
+    status_code = data.get("StatusCode", data.get("code"))
+    if status_code != 0:
+        raise RuntimeError("飞书业务错误: code=%s, msg=%s" % (status_code, data.get("msg", "")))
+    return status_code
 
 
 def main():
