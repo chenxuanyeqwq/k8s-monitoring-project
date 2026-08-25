@@ -2,7 +2,7 @@
 
 一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目。
 
-> 📌 **当前版本 v2.0**：白盒（资源监控）+ 黑盒（服务可用性探测）双层监控。上一版 v1.0 为 5 模块全链路。
+> 📌 **当前版本 v3.0**：LNMP 已**上云**（阿里云 ECS）**公网可访问** + **CI/CD 自动部署**。v2.0 = 白盒+黑盒双层监控;v1.0 = 5 模块全链路。
 
 ## 模块总览
 
@@ -18,7 +18,8 @@
 ## 当前运行状态
 
 ```
-LNMP 留言板（compose）    http://localhost:8080
+LNMP 留言板（compose·云端） http://8.217.195.115:8080  ← 已上云，公网可访问
+LNMP 留言板（compose·本地）  http://localhost:8080
 k8s 留言板（Ingress）     curl -H "Host: guestbook.local" http://localhost:8081
 Grafana                   curl -H "Host: grafana.local" http://localhost:8081  (admin/admin)
 Prometheus                kubectl -n monitoring port-forward svc/prometheus 9090:9090
@@ -66,6 +67,23 @@ cron 每 5 分钟 → service_probe.py
 - 连续失败 3 次才告警（防误报）、`down` 后不重复轰炸、状态存 `service_probe_state.json`（已 gitignore）
 - 失败原因区分上报：`连接拒绝` / `HTTP 503`（Ingress 无可用 Pod）/ `HTTP 404`
 - **实测**：停 nginx → 飞书收到失败告警；缩容 guestbook 到 0 → 捕获 HTTP 503；恢复均推送"已恢复"
+
+## v3.0 新增：上云 + CI/CD 自动部署
+
+LNMP 留言板已部署到 **阿里云 ECS（Ubuntu 22.04，香港）**，公网可访问；接入 **GitHub Actions 流水线**，代码 push 到 main 自动构建并部署。
+
+```
+GitHub push → Actions(拉代码) → scp 上传 01-lnmp → SSH 执行 deploy.sh → 上线
+```
+
+- **公网地址**：`http://8.217.195.115:8080`（留言板）
+- **部署目标**：阿里云 ECS `8.217.195.115`（Ubuntu + Docker 预装，安全组仅放行 22/8080）
+- **关键文件**：
+  - `.github/workflows/deploy.yml` — CI/CD 流水线
+  - `01-lnmp/deploy.sh` — 服务器部署脚本（构建镜像 + compose up + 带重试自检）
+  - `docs/云服务器部署手册.md` — 从购买到跑通的完整操作手册
+- **部署路线**：走 Docker Compose（k8s 版与监控为后续可加阶段）
+- **安全**：SSH 登录；服务器密码存 GitHub Secrets（不落库）；`.env` 由 gitignore 保护不入库
 
 ## 飞书 webhook 配置
 
