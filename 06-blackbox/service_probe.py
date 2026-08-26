@@ -19,9 +19,9 @@ from urllib.error import HTTPError, URLError
 
 
 # 探测目标：每个目标独立判断、独立告警
-# v3.0：主目标为云端公网入口(阿里云 ECS)，从外部视角探测服务可用性
+# v3.6：主目标为云端 HTTPS 入口(阿里云 ECS)，从外部视角探测服务可用性
 TARGETS = [
-    {"name": "云端LNMP留言板", "url": "http://8.217.195.115:8080", "headers": {}},
+    {"name": "云端LNMP留言板", "url": "https://www.fchen.xyz", "headers": {}},
 ]
 
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "service_probe_state.json")

@@ -17,3 +17,7 @@ __pycache__/
 
 # 黑盒探测脚本的运行状态文件
 06-blackbox/service_probe_state.json
+
+# TLS 证书（HTTPS）与 Let's Encrypt 验证目录 —— 绝不可提交
+01-lnmp/nginx/ssl/
+01-lnmp/nginx/acme/

@@ -14,10 +14,10 @@ docker compose up -d --build
 echo "==> [3/3] 自检(带重试,等 MySQL 就绪)"
 docker compose ps
 for i in $(seq 1 10); do
-  code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080 || true)
-  echo "尝试 $i: HTTP $code"
+  code=$(curl -sk -o /dev/null -w "%{http_code}" https://localhost || true)
+  echo "尝试 $i: HTTPS $code"
   if [ "$code" = "200" ]; then
-    echo "✅ 部署完成: http://localhost:8080"
+    echo "✅ 部署完成: https://www.fchen.xyz"
     exit 0
   fi
   sleep 3

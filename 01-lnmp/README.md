@@ -2,15 +2,15 @@
 
 自写 PHP 留言板，用 docker compose 一键编排 **Nginx + PHP-FPM + MySQL** 三容器，验证"容器销毁、数据不丢"。
 
-> **v3.0+ 更新**：本模块已部署到**阿里云 ECS**（`http://8.217.195.115:8080` 公网可访问），由 GitHub Actions 自动部署（`git push` 即上线）；前端升级为清爽 SaaS 版（友好时间 / 提交 Toast / 空状态 / 移动端适配）。服务器部署手册见 `docs/云服务器部署手册.md`。
+> **v3.6+ 更新**：本模块已部署到**阿里云 ECS**（`https://www.fchen.xyz` 公网可访问，全站 HTTPS），由 GitHub Actions 自动部署（`git push` 即上线）；前端升级为清爽 SaaS 版（友好时间 / 提交 Toast / 空状态 / 移动端适配）。服务器部署手册见 `docs/云服务器部署手册.md`。
 
 ## 架构
 
 ```
 浏览器
-  │  :8080
+  │  :443 HTTPS ← v3.6 全站加密；:80 → 301 跳转；:8080 旧入口过渡
   ▼
-Nginx (lnmp-nginx, 容器80)
+Nginx (lnmp-nginx, 容器443/80)
   │  转发 .php
   ▼
 PHP-FPM (lnmp-php, 容器9000) ──pdo_mysql──► MySQL (lnmp-mysql, 容器3306)
@@ -28,7 +28,8 @@ docker build -t lnmp-php ./php
 docker compose up -d
 
 # 3. 访问
-http://localhost:8080
+https://localhost        # HTTPS（本地证书域名不匹配，浏览器需忽略警告）
+http://localhost:8080    # 自动 301 跳 HTTPS
 ```
 
 ## 目录结构
@@ -39,7 +40,8 @@ http://localhost:8080
 ├── php/
 │   ├── Dockerfile       # php-fpm 运行时 + pdo_mysql 扩展
 │   └── www/index.php    # 留言板应用（挂载进容器，改代码不用重建镜像）
-├── nginx/nginx.conf     # 转发 .php 请求到 php-fpm
+├── nginx/nginx.conf     # 转发 .php 请求到 php-fpm + HTTPS/301 配置
+├── nginx/ssl/           # TLS 证书（Let's Encrypt 签发，gitignore 不入库）
 └── mysql/init.sql       # 首次启动自动建表 + 种子数据
 ```
 

@@ -1,14 +1,14 @@
 # Docker + K8s 部署与监控
 
-一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目，现已**上云 + 全链路监控告警 + 日志采集 + 域名上线**。
+一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目，现已**上云 + 全链路监控告警 + 日志采集 + 全站 HTTPS + 域名上线**。
 
-> 📌 **当前版本 v3.5**：LNMP 上云公网可访问 + CI/CD 自动部署 + **云监控告警 + 应用层监控** + **日志采集(Loki+promtail)** + **域名 fchen.xyz 上线**。v3.4 = 域名上线;v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
+> 📌 **当前版本 v3.6**：LNMP 上云公网可访问 + CI/CD 自动部署 + **云监控告警 + 应用层监控** + **日志采集(Loki+promtail)** + **全站 HTTPS(Let's Encrypt)** + **域名 fchen.xyz 上线**。v3.5 = 日志采集;v3.4 = 域名上线;v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
 
 ## 模块总览
 
 | 模块 | 目录 | 内容 | 验证结果 |
 |---|---|---|---|
-| 1. LNMP 容器化 | `01-lnmp/` | 自写 PHP 留言板，docker compose 编排 Nginx+PHP-FPM+MySQL | ✅ 中文无乱码、删容器数据不丢 |
+| 1. LNMP 容器化 | `01-lnmp/` | 自写 PHP 留言板，docker compose 编排 Nginx+PHP-FPM+MySQL，**全站 HTTPS(Let's Encrypt)** | ✅ 中文无乱码、删容器数据不丢、HTTPS 200 |
 | 2. k3s 部署 | `02-k3s/` | k3d 建集群，留言板部署到 k8s，滚动更新/回滚演练 | ✅ v1→v2→回滚全通过 |
 | 3. 监控告警 | `03-monitoring/` | node_exporter→Prometheus→Alertmanager→飞书，Grafana 面板 | ✅ CPU 打满告警真实触发 |
 | 4. 运维脚本 | `04-scripts/` | 磁盘告警 + 日志清理脚本 | ✅ 本地实测通过 |
@@ -19,9 +19,9 @@
 ## 当前运行状态
 
 ```
-LNMP 留言板（compose·云端） http://www.fchen.xyz:8080    ← 已上云，域名上线（v3.4），公网可访问
+LNMP 留言板（compose·云端） https://www.fchen.xyz       ← 已上云，全站 HTTPS(v3.6)，公网可访问
 云服务器 Grafana（v3.2/v3.5） http://8.217.195.115:3000     ← 面板看 CPU/内存/磁盘；Explore 查容器日志(Loki)
-LNMP 留言板（compose·本地）  http://localhost:8080
+LNMP 留言板（compose·本地）  http://localhost:8080 (会自动跳 HTTPS)
 k8s 留言板（Ingress）     curl -H "Host: guestbook.local" http://localhost:8081
 本地 Grafana               curl -H "Host: grafana.local" http://localhost:8081  (admin/admin)
 Prometheus(本地)           kubectl -n monitoring port-forward svc/prometheus 9090:9090
@@ -46,6 +46,8 @@ Prometheus(本地)           kubectl -n monitoring port-forward svc/prometheus 9
 11. **飞书 webhook 成功响应字段是 `StatusCode`**（非小写 `code`）→ 判断成功要兼容两个字段，否则成功被误判为失败
 12. **Loki 容器只绑 IPv6**（v3.5）→ 组件间 gRPC 走 IPv4 `127.0.0.1` 超时、`/ready` 503 + ratestore 报错 → 配置显式 `http_listen_address: 0.0.0.0` + `grpc_listen_address: 0.0.0.0`
 13. **2G 内存上 Loki 前必须先加 swap**（v3.5）→ `fallocate -l 2G /swapfile` + 写 fstab，否则内存紧张 OOM
+14. **acme.sh 默认用 ZeroSSL 签发失败**（v3.6）→ ZeroSSL API 返回 502 Bad Gateway、白等 6 分钟 → `--set-default-ca --server letsencrypt` 切 Let's Encrypt 秒签
+15. **CI/CD 自检失效**（v3.6）→ nginx 改 HTTPS 后 `curl localhost:8080` 返回 301 非 200 → 自检改 `curl -sk https://localhost`
 
 ## 告警链路（三层监控 → 飞书）
 
@@ -83,7 +85,7 @@ LNMP 留言板已部署到 **阿里云 ECS（Ubuntu 22.04，香港）**，公网
 GitHub push → Actions(拉代码) → scp 上传 01-lnmp → SSH 执行 deploy.sh → 上线
 ```
 
-- **公网地址**：`http://www.fchen.xyz:8080`（留言板，v3.4 起支持域名访问；IP `http://8.217.195.115:8080` 仍可用）
+- **公网地址**：`https://www.fchen.xyz`（留言板，v3.4 起域名访问、v3.6 起全站 HTTPS；旧 `http://www.fchen.xyz:8080` 自动 301 跳转 HTTPS）
 - **关键文件**：`.github/workflows/deploy.yml`（CI/CD）、`01-lnmp/deploy.sh`（构建+部署+带重试自检）、`docs/云服务器部署手册.md`
 - **安全**：服务器密码存 GitHub Secrets（不落库）；`.env` 由 gitignore 保护不入库
 
@@ -144,6 +146,20 @@ http://8.217.195.115:3000    ← Grafana（监控面板，保持 IP）
 - **查询入口**：Grafana(:3000) → **Explore** → Loki → `{container="lnmp-nginx"}` 看网站访问日志
 - **保留 7 天**；自动打标 `container`/`stream`/`service_name`
 - 坑：Loki 只绑 IPv6 → 显式绑 `0.0.0.0`；2G 内存先加 swap（2G）兜底
+
+### v3.6 全站 HTTPS（Let's Encrypt）
+给留言板上了免费 TLS 证书，全站加密，HTTP 自动 301 到 HTTPS：
+
+```
+https://www.fchen.xyz           ← 主入口（443，TLS 加密）
+http://www.fchen.xyz            ← 自动 301 跳转 HTTPS
+http://www.fchen.xyz:8080       ← 旧入口，自动 301（过渡保留）
+```
+
+- **证书**：Let's Encrypt（acme.sh 签发，ECC，90 天自动续期 + 续期后自动 reload nginx）
+- **配置**：`01-lnmp/nginx/nginx.conf` 监听 443 + HTTP 301；证书文件 `01-lnmp/nginx/ssl/`（gitignore 不入库）
+- **验证**：`https://www.fchen.xyz` HTTP 200；证书有效期 2026-08-26 ~ 11-24
+- 坑：acme.sh 默认 ZeroSSL 签发 502 → 切 Let's Encrypt；CI/CD 自检同步改 HTTPS
 
 ## 飞书 webhook 配置
 
