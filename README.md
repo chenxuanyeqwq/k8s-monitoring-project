@@ -1,8 +1,8 @@
 # Docker + K8s 部署与监控
 
-一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目，现已**上云 + 全链路监控告警**。
+一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目，现已**上云 + 全链路监控告警 + 域名上线**。
 
-> 📌 **当前版本 v3.3**：LNMP 上云公网可访问 + CI/CD 自动部署 + **云监控告警 + 应用层监控**（Grafana 看云服务器资源 + 网站本身指标 + 飞书三层预检）+ 前端清爽版。v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
+> 📌 **当前版本 v3.4**：LNMP 上云公网可访问 + CI/CD 自动部署 + **云监控告警 + 应用层监控** + **域名 fchen.xyz 上线**。v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
 
 ## 模块总览
 
@@ -19,7 +19,7 @@
 ## 当前运行状态
 
 ```
-LNMP 留言板（compose·云端） http://8.217.195.115:8080   ← 已上云，公网可访问
+LNMP 留言板（compose·云端） http://www.fchen.xyz:8080    ← 已上云，域名上线（v3.4），公网可访问
 云服务器 Grafana（v3.2）     http://8.217.195.115:3000     ← 看云服务器 CPU/内存/磁盘
 LNMP 留言板（compose·本地）  http://localhost:8080
 k8s 留言板（Ingress）     curl -H "Host: guestbook.local" http://localhost:8081
@@ -81,7 +81,7 @@ LNMP 留言板已部署到 **阿里云 ECS（Ubuntu 22.04，香港）**，公网
 GitHub push → Actions(拉代码) → scp 上传 01-lnmp → SSH 执行 deploy.sh → 上线
 ```
 
-- **公网地址**：`http://8.217.195.115:8080`（留言板）
+- **公网地址**：`http://www.fchen.xyz:8080`（留言板，v3.4 起支持域名访问；IP `http://8.217.195.115:8080` 仍可用）
 - **关键文件**：`.github/workflows/deploy.yml`（CI/CD）、`01-lnmp/deploy.sh`（构建+部署+带重试自检）、`docs/云服务器部署手册.md`
 - **安全**：服务器密码存 GitHub Secrets（不落库）；`.env` 由 gitignore 保护不入库
 
@@ -118,6 +118,18 @@ node-exporter → Prometheus(规则) → Alertmanager → feishu-bridge → 飞�
 - **Grafana 7 块面板**（新增 Nginx 请求率/5xx、MySQL 查询/连接），实测有数据
 - **新增告警**：`High5xxRate`（>5% 1min）+ `MySQLDown`，走飞书链路
 - 坑：mysqld-exporter 用 **v0.14.0**（v0.15 有 .my.cnf 解析坑）；改 prometheus.yml 要 `docker restart cm-prometheus`；scp 更新文件后 `chmod -R a+rX grafana/` + 重启 Grafana
+
+### v3.4 域名上线（fchen.xyz）
+绑定阿里云域名 **fchen.xyz**（香港服务器**免备案**），配置 A 记录 `@` + `www` → `8.217.195.115`，公网主入口升级为域名：
+
+```
+http://www.fchen.xyz:8080    ← 留言板（主入口，域名）
+http://8.217.195.115:3000    ← Grafana（监控面板，保持 IP）
+```
+
+- 实名认证已通过 → ServerHold 解除 → 解析生效（curl 实测 `http://www.fchen.xyz:8080` HTTP 200）
+- DNS：权威 NS `dns21/dns22.hichina.com`，A 记录已发布；全球解析传播约数小时收敛
+- 待办（可选扩展）：HTTPS（Let's Encrypt + 自动续期）
 
 ## 飞书 webhook 配置
 
