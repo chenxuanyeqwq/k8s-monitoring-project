@@ -1,8 +1,8 @@
 # Docker + K8s 部署与监控
 
-一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目，现已**上云 + 全链路监控告警 + 域名上线**。
+一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目，现已**上云 + 全链路监控告警 + 日志采集 + 域名上线**。
 
-> 📌 **当前版本 v3.4**：LNMP 上云公网可访问 + CI/CD 自动部署 + **云监控告警 + 应用层监控** + **域名 fchen.xyz 上线**。v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
+> 📌 **当前版本 v3.5**：LNMP 上云公网可访问 + CI/CD 自动部署 + **云监控告警 + 应用层监控** + **日志采集(Loki+promtail)** + **域名 fchen.xyz 上线**。v3.4 = 域名上线;v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
 
 ## 模块总览
 
@@ -14,13 +14,13 @@
 | 4. 运维脚本 | `04-scripts/` | 磁盘告警 + 日志清理脚本 | ✅ 本地实测通过 |
 | 5. 飞书桥 | `05-feishu-bridge/` | Alertmanager 告警 → 飞书消息 的转换服务（k8s Deployment） | ✅ 压测告警端到端到桥 |
 | 6. 黑盒探测（**2.0**） | `06-blackbox/` | 从外网视角探测留言板入口，连续失败 3 次推飞书告警、恢复推已恢复（v3.2 起在云服务器常驻） | ✅ 停服实测告警+恢复 |
-| 7. 云监控告警（**v3.2/v3.3**） | `07-cloud-monitoring/` | 云服务器 compose 监控栈：node-exporter(机器) + nginx/mysql exporter(应用) → Prometheus→Alertmanager→飞书 + Grafana 7 面板 + 每日内存报告 | ✅ 三层监控全 up,告警/恢复/内存报告实测 |
+| 7. 云监控告警 + 日志（**v3.2-v3.5**） | `07-cloud-monitoring/` | 云服务器 compose 监控栈：node-exporter(机器) + nginx/mysql exporter(应用) → Prometheus→Alertmanager→飞书 + Grafana 7 面板 + 每日内存报告 + **Loki/promtail 日志采集(v3.5)** | ✅ 三层监控全 up,告警/恢复/内存报告/日志查询实测 |
 
 ## 当前运行状态
 
 ```
 LNMP 留言板（compose·云端） http://www.fchen.xyz:8080    ← 已上云，域名上线（v3.4），公网可访问
-云服务器 Grafana（v3.2）     http://8.217.195.115:3000     ← 看云服务器 CPU/内存/磁盘
+云服务器 Grafana（v3.2/v3.5） http://8.217.195.115:3000     ← 面板看 CPU/内存/磁盘；Explore 查容器日志(Loki)
 LNMP 留言板（compose·本地）  http://localhost:8080
 k8s 留言板（Ingress）     curl -H "Host: guestbook.local" http://localhost:8081
 本地 Grafana               curl -H "Host: grafana.local" http://localhost:8081  (admin/admin)
@@ -44,6 +44,8 @@ Prometheus(本地)           kubectl -n monitoring port-forward svc/prometheus 9
 9. **NI Application WebServer 抢占 8080 端口（Windows）** → 8080 的所有 IPv4 地址被劫持（返回 `Embedthis-http` 404），nginx 只在 IPv6 `::1` 通，表现为"curl 通但 Python urllib 404" → `net stop NIApplicationWebServer` 释放端口
 10. **Grafana provisioning 面板不加载**（v3.2）→ scp 上传文件 root 权限、容器非 root 读不了 → `chmod -R a+rX` + 重启 Grafana
 11. **飞书 webhook 成功响应字段是 `StatusCode`**（非小写 `code`）→ 判断成功要兼容两个字段，否则成功被误判为失败
+12. **Loki 容器只绑 IPv6**（v3.5）→ 组件间 gRPC 走 IPv4 `127.0.0.1` 超时、`/ready` 503 + ratestore 报错 → 配置显式 `http_listen_address: 0.0.0.0` + `grpc_listen_address: 0.0.0.0`
+13. **2G 内存上 Loki 前必须先加 swap**（v3.5）→ `fallocate -l 2G /swapfile` + 写 fstab，否则内存紧张 OOM
 
 ## 告警链路（三层监控 → 飞书）
 
@@ -131,6 +133,18 @@ http://8.217.195.115:3000    ← Grafana（监控面板，保持 IP）
 - DNS：权威 NS `dns21/dns22.hichina.com`，A 记录已发布；全球解析传播约数小时收敛
 - 待办（可选扩展）：HTTPS（Let's Encrypt + 自动续期）
 
+### v3.5 日志采集（Loki + promtail）
+四路监控闭环的最后一块——**日志**。`07-cloud-monitoring` 新增 **Loki**(存储) + **promtail**(采集)，promtail 读 docker.sock 自动发现所有容器，收 stdout/stderr 日志推 Loki，接入 Grafana Explore：
+
+```
+容器日志(nginx/php/mysql/prometheus...) → promtail(docker_sd 自动发现) → Loki → Grafana Explore 查询
+```
+
+- **实测**：curl 访问网站 → nginx access log（`GET / HTTP/1.1 200`）自动进 Loki 秒查 ✅；所有容器日志自动采集 ✅
+- **查询入口**：Grafana(:3000) → **Explore** → Loki → `{container="lnmp-nginx"}` 看网站访问日志
+- **保留 7 天**；自动打标 `container`/`stream`/`service_name`
+- 坑：Loki 只绑 IPv6 → 显式绑 `0.0.0.0`；2G 内存先加 swap（2G）兜底
+
 ## 飞书 webhook 配置
 
 webhook 统一填在项目根 **`.env`**（`FEISHU_WEBHOOK=` 后面）：
@@ -147,4 +161,4 @@ webhook 统一填在项目根 **`.env`**（`FEISHU_WEBHOOK=` 后面）：
 - [模块4：运维脚本](04-scripts/README.md)
 - [模块5：飞书桥](05-feishu-bridge/README.md)
 - [模块6：黑盒探测（2.0）](06-blackbox/README.md)
-- [模块7：云监控告警（v3.2）](07-cloud-monitoring/README.md)
+- [模块7：云监控告警 + 日志（v3.5）](07-cloud-monitoring/README.md)
