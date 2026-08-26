@@ -72,6 +72,28 @@ services:
     networks: [default, lnmp]
     restart: unless-stopped
 
+  # ---- v3.4 日志采集：Loki + promtail（自动收集所有容器 stdout/stderr）----
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: cm-loki
+    command:
+      - '-config.file=/etc/loki/loki-config.yml'
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:3.3.2
+    container_name: cm-promtail
+    command:
+      - '-config.file=/etc/promtail/promtail-config.yml'
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
 networks:
   lnmp:
     external: true
@@ -80,3 +102,4 @@ networks:
 volumes:
   prom_data:
   graf_data:
+  loki_data:

@@ -15,7 +15,9 @@
     ├─ prometheus       :9090  内部  抓 node/nginx/mysql + 告警规则（CPU/磁盘/5xx/MySQL）
     ├─ alertmanager     :9093  内部  去重路由 → feishu-bridge
     ├─ feishu-bridge    :8080  内部  复用 05 代码，Alertmanager 格式 → 飞书格式
-    └─ grafana          :3000  公网  可视化（CPU/内存/磁盘 + nginx/mysql 面板，provisioning 自动配）
+    ├─ grafana          :3000  公网  可视化（CPU/内存/磁盘 + nginx/mysql 面板，provisioning 自动配）
+    ├─ loki             :3100  内部  日志存储（Grafana 家，单机精简，7 天保留）—— v3.5 日志采集
+    └─ promtail         :9080  内部  读 docker.sock 自动发现所有容器 → 收 stdout/stderr 日志推 Loki
 └─ 宿主机 cron
     ├─ service_probe.py   每 5 分钟  黑盒探公网入口（06-blackbox，挪来常驻）
     └─ memory_report.py   每天 9:00  读 /proc/meminfo 推飞书每日内存报告
@@ -47,6 +49,28 @@ docker compose -f docker-compose.monitoring.yml ps
 - `stress --cpu 2` 压测 → Prometheus HighCPUUsage firing → Alertmanager → feishu-bridge → **飞书实收告警 + 恢复** ✅
 - 黑盒探公网入口 → HTTP 200 正常
 - 每日内存报告 → 飞书 code=0 推送成功 ✅
+
+## v3.5 日志采集（2026-08-26 完成 ✅）
+
+**访问方式**：Grafana（:3000）→ **Explore** → 数据源选 **Loki**，查 `{container="lnmp-nginx"}` 即看网站访问日志。
+
+**实测全通过：**
+- 本机 curl 访问网站 → nginx access log（`GET / HTTP/1.1 200`）自动进 Loki，查询 API 秒出 ✅
+- 所有容器日志自动收：LNMP（nginx/php/mysql）+ 监控栈（prometheus/grafana 等）✅
+- label：`container` / `stream` / `service_name` 自动打标 ✅
+- Grafana provisioning 自动加载 Loki 数据源 ✅
+
+**坑（踩过）：**
+- ⚠️ **Loki 只绑 IPv6**（`:::3100`/`:::9096`），组件间用 IPv4 `127.0.0.1` 访问超时 → `/ready` 503 + ratestore DeadlineExceeded → 配置里必须显式 `http_listen_address: 0.0.0.0` + `grpc_listen_address: 0.0.0.0`
+- ⚠️ **2G 内存要先加 swap**（`fallocate -l 2G /swapfile` + fstab），Loki 单机约 +60MB，swap 兜底防 OOM
+- Loki 容器**不映射公网端口**，宿主机 curl localhost:3100 连不上是正常的，验证从容器网络内做（`docker exec cm-grafana wget http://loki:3100/...`）
+
+**启动命令**（服务器）：
+```bash
+cd /opt/k8s-project/07-cloud-monitoring
+docker compose -f docker-compose.monitoring.yml up -d   # 拉 loki/promtail 镜像
+docker restart cm-grafana                                # 加载 Loki 数据源
+```
 
 ## 关键点
 

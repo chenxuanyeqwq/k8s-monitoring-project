@@ -1,0 +1,55 @@
+# Loki 单机精简配置（2G 内存云服务器专用）
+# 要点：tsdb 存储 / 日志保留 7 天 / 内存缓存压到 64MB 防 OOM
+auth_enabled: false
+
+server:
+  http_listen_address: 0.0.0.0   # 显式绑 IPv4，避免容器里只绑 ::(IPv6) 导致内部访问超时
+  http_listen_port: 3100
+  grpc_listen_address: 0.0.0.0
+  grpc_listen_port: 9096
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2024-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+storage_config:
+  tsdb_shipper:
+    active_index_directory: /loki/index
+    cache_location: /loki/cache
+    cache_ttl: 24h
+
+limits_config:
+  retention_period: 168h        # 日志保留 7 天
+  allow_structured_metadata: true
+  volume_enabled: true
+
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  delete_request_store: filesystem
+
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 64          # 压缩缓存，省内存
+        ttl: 1h
