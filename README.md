@@ -87,7 +87,7 @@ GitHub push → Actions(拉代码) → scp 上传 01-lnmp → SSH 执行 deploy.
 - **关键文件**：`.github/workflows/deploy.yml`（CI/CD）、`01-lnmp/deploy.sh`（构建+部署+带重试自检）、`docs/云服务器部署手册.md`
 - **安全**：服务器密码存 GitHub Secrets（不落库）；`.env` 由 gitignore 保护不入库
 
-## v3.1/v3.2/v3.3 新增：前端优化 + 云监控告警 + 应用层监控
+## v3.1–v3.5 新增：前端优化 → 云监控告警 → 应用层监控 → 域名上线 → 日志采集
 
 ### v3.1 前端清爽 SaaS 版
 留言板前端整体重写（单文件 `01-lnmp/php/www/index.php`）：CSS 设计令牌、友好时间（PHP ISO + JS 相对时间）、提交 Toast（PRG 防重复提交）、精致空状态、移动端适配。安全防护（prepare + htmlspecialchars + PRG）全程保持。
