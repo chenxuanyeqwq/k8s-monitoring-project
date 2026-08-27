@@ -68,14 +68,14 @@ image: ${ACR_REGISTRY}/lnmp-php:${IMAGE_TAG:-latest}
 1. 开通「容器镜像服务 ACR」个人版（免费）
 2. 建命名空间 `fchen` + 镜像仓库 `lnmp-php`
 3. 「访问凭证」设置固定登录密码 → 得到 `ACR_USERNAME` / `ACR_PASSWORD`
-4. 仓库地址：`registry.cn-hangzhou.aliyuncs.com/fchen/lnmp-php`
+4. 仓库地址：`crpi-fcwx65scr1zcwwy2.cn-hongkong.personal.cr.aliyuncs.com/fchen/lnmp-php`（实测：ACR 个人版使用 `crpi-<实例id>.cn-hongkong.personal.cr.aliyuncs.com` 专属域名，**不是** `registry.cn-hangzhou.aliyuncs.com`；用户名是访问凭证页显示的 `fchen_xy`，不是账户中文全名）
 
 ## GitHub Secrets 清单（Settings → Secrets and variables → Actions）
 
-新增：
-- `ACR_REGISTRY` = `registry.cn-hangzhou.aliyuncs.com`
-- `ACR_USERNAME`
-- `ACR_PASSWORD`
+新增（实测值）：
+- `ACR_REGISTRY` = `crpi-fcwx65scr1zcwwy2.cn-hongkong.personal.cr.aliyuncs.com`
+- `ACR_USERNAME` = `fchen_xy`
+- `ACR_PASSWORD` = 访问凭证设置的固定密码
 
 保留：`SERVER_HOST` / `SERVER_USER` / `SERVER_PASSWORD`
 

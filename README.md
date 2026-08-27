@@ -2,7 +2,7 @@
 
 一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目，现已**上云 + 全链路监控告警 + 日志采集 + 全站 HTTPS + 域名上线**。
 
-> 📌 **当前版本 v3.6**：LNMP 上云公网可访问 + CI/CD 自动部署 + **云监控告警 + 应用层监控** + **日志采集(Loki+promtail)** + **全站 HTTPS(Let's Encrypt)** + **域名 fchen.xyz 上线**。v3.5 = 日志采集;v3.4 = 域名上线;v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
+> 📌 **当前版本 v4.0**：LNMP 上云公网可访问 + **生产级 CI/CD（CI 构建推 ACR + 服务器只拉 + 一键回滚）** + **云监控告警 + 应用层监控** + **日志采集(Loki+promtail)** + **全站 HTTPS(Let's Encrypt)** + **域名 fchen.xyz 上线**。v3.6 = 全站HTTPS;v3.5 = 日志采集;v3.4 = 域名上线;v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
 
 ## 模块总览
 
@@ -82,11 +82,11 @@ cron 每 5 分钟 → service_probe.py
 LNMP 留言板已部署到 **阿里云 ECS（Ubuntu 22.04，香港）**，公网可访问；接入 **GitHub Actions 流水线**，代码 push 到 main 自动构建并部署。
 
 ```
-GitHub push → Actions(拉代码) → scp 上传 01-lnmp → SSH 执行 deploy.sh → 上线
+GitHub push → Actions(拉代码) → CI 构建镜像 → push ACR(sha+latest 双 tag) → scp 01-lnmp → SSH deploy.sh(服务器只拉镜像) → 上线
 ```
 
 - **公网地址**：`https://www.fchen.xyz`（留言板，v3.4 起域名访问、v3.6 起全站 HTTPS；旧 `http://www.fchen.xyz:8080` 自动 301 跳转 HTTPS）
-- **关键文件**：`.github/workflows/deploy.yml`（CI/CD）、`01-lnmp/deploy.sh`（构建+部署+带重试自检）、`docs/云服务器部署手册.md`
+- **关键文件**：`.github/workflows/deploy.yml`（CI/CD）、`01-lnmp/deploy.sh`（拉镜像+部署+自检）、`01-lnmp/rollback.sh`（一键回滚）、`docs/云服务器部署手册.md`
 - **安全**：服务器密码存 GitHub Secrets（不落库）；`.env` 由 gitignore 保护不入库
 
 ## v3.1–v3.5 新增：前端优化 → 云监控告警 → 应用层监控 → 域名上线 → 日志采集
@@ -160,6 +160,20 @@ http://www.fchen.xyz:8080       ← 旧入口，自动 301（过渡保留）
 - **配置**：`01-lnmp/nginx/nginx.conf` 监听 443 + HTTP 301；证书文件 `01-lnmp/nginx/ssl/`（gitignore 不入库）
 - **验证**：`https://www.fchen.xyz` HTTP 200；证书有效期 2026-08-26 ~ 11-24
 - 坑：acme.sh 默认 ZeroSSL 签发 502 → 切 Let's Encrypt；CI/CD 自检同步改 HTTPS
+
+### v4.0 生产级 CI/CD：镜像仓库化 + 一键回滚（2026-08-27）
+
+镜像构建从服务器挪到 CI，经阿里云 ACR 镜像仓库版本化，服务器只拉镜像部署——8.27 OOM 事故的根治项：
+
+```
+GitHub push → CI 构建 php 镜像 → push ACR(commit sha + latest 双 tag) → scp 01-lnmp → 服务器 docker login + 拉镜像 + compose up → 自检
+```
+
+- **镜像地址**：`crpi-fcwx65scr1zcwwy2.cn-hongkong.personal.cr.aliyuncs.com/fchen/lnmp-php:<tag>`（香港个人版专属域名，命名空间 fchen）
+- **回滚**：`bash rollback.sh <commit sha>` 一条命令拉旧镜像重启，实测三版本切换通过
+- **版本可追溯**：镜像内烘焙 `APP_BUILD=commit sha`，`docker exec lnmp-php printenv APP_BUILD` 验证当前线上版本
+- **内存收益**：构建峰值从 2G 服务器消失（OOM 根治），服务器只做 pull
+- **相关**：`docs/2026-08-27-LNMP-OOM事故记录.md`、`docs/superpowers/specs/2026-08-27-ci-image-registry-design.md`
 
 ## 飞书 webhook 配置
 
