@@ -2,7 +2,7 @@
 
 一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目，现已**上云 + 全链路监控告警 + 日志采集 + 全站 HTTPS + 域名上线**。
 
-> 📌 **当前版本 v4.0**：LNMP 上云公网可访问 + **生产级 CI/CD（CI 构建推 ACR + 服务器只拉 + 一键回滚）** + **云监控告警 + 应用层监控** + **日志采集(Loki+promtail)** + **全站 HTTPS(Let's Encrypt)** + **域名 fchen.xyz 上线**。v3.6 = 全站HTTPS;v3.5 = 日志采集;v3.4 = 域名上线;v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
+> 📌 **当前版本 v4.1**：LNMP 上云公网可访问 + **生产级 CI/CD（CI 构建推 ACR + 服务器只拉 + 一键回滚 + 单测质量门）** + **云监控告警 + 应用层监控** + **日志采集(Loki+promtail)** + **全站 HTTPS(Let's Encrypt)** + **域名 fchen.xyz 上线**。v4.0 = 镜像仓库化;v3.6 = 全站HTTPS;v3.5 = 日志采集;v3.4 = 域名上线;v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
 
 ## 模块总览
 
@@ -174,6 +174,15 @@ GitHub push → CI 构建 php 镜像 → push ACR(commit sha + latest 双 tag) �
 - **版本可追溯**：镜像内烘焙 `APP_BUILD=commit sha`，`docker exec lnmp-php printenv APP_BUILD` 验证当前线上版本
 - **内存收益**：构建峰值从 2G 服务器消失（OOM 根治），服务器只做 pull
 - **相关**：`docs/2026-08-27-LNMP-OOM事故记录.md`、`docs/superpowers/specs/2026-08-27-ci-image-registry-design.md`
+
+### v4.1 测试进流水线：部署前质量门（2026-08-27）
+
+单元测试接入 GitHub Actions，push 先跑测试，不过不构建不部署：
+
+- **流水线**：push → checkout → **单元测试(6 个单测)** → CI 构建 → ACR → 服务器只拉 → 自检
+- **测试**：`python -m unittest discover -s 06-blackbox -p "test_*.py"`，跑在 GitHub runner（不占服务器内存）
+- **触发**：`06-blackbox/**` 改动也触发（探测脚本逻辑变更会被测试把关）
+- **实测**：临时改坏阈值 → CI **红在测试步**，构建/部署未执行 → 线上不受影响 → 还原恢复绿
 
 ## 飞书 webhook 配置
 
