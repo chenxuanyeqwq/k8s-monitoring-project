@@ -3,6 +3,10 @@
 #       这样改代码不用重新构建镜像，也更容易理解"镜像=运行时、挂载=代码"的分工。
 FROM php:8.2-fpm-alpine
 
+# 阶段2：构建时注入 commit sha 作为镜像版本标记（用于验证回滚可观察）
+ARG APP_BUILD=unknown
+ENV APP_BUILD=$APP_BUILD
+
 # 安装连接 MySQL 所需的 PHP 扩展（pdo_mysql）
 # ⚠️ 排障点：官方镜像不含 gcc/make，docker-php-ext-install 要先 apk 装编译依赖，
 #    而 Alpine 官方源在国内连不上会导致构建卡死。
