@@ -12,12 +12,15 @@ if [ -z "$1" ]; then
 fi
 
 SHA="$1"
-ACR_REGISTRY=${ACR_REGISTRY:?必须设置 ACR_REGISTRY(如 registry.cn-hangzhou.aliyuncs.com)}
-ACR_USERNAME=${ACR_USERNAME:?必须设置 ACR_USERNAME}
-ACR_PASSWORD=${ACR_PASSWORD:?必须设置 ACR_PASSWORD}
+ACR_REGISTRY=${ACR_REGISTRY:?必须设置 ACR_REGISTRY(如 crpi-xxx.cn-hongkong.personal.cr.aliyuncs.com)}
 
-echo "==> 登录镜像仓库 ${ACR_REGISTRY}"
-echo "$ACR_PASSWORD" | docker login "$ACR_REGISTRY" -u "$ACR_USERNAME" --password-stdin
+# 有提供凭据就显式登录；否则用本机已保存的 ACR 凭据（CI 部署时会 docker login 落盘）
+if [ -n "${ACR_USERNAME:-}" ] && [ -n "${ACR_PASSWORD:-}" ]; then
+  echo "==> 登录镜像仓库 ${ACR_REGISTRY}"
+  echo "$ACR_PASSWORD" | docker login "$ACR_REGISTRY" -u "$ACR_USERNAME" --password-stdin
+else
+  echo "==> 使用本机已保存的 ACR 凭据"
+fi
 
 echo "==> 拉取旧镜像 ${ACR_REGISTRY}/fchen/lnmp-php:${SHA}"
 docker pull "${ACR_REGISTRY}/fchen/lnmp-php:${SHA}"
