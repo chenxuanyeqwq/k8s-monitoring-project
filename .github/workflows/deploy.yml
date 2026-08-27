@@ -36,10 +36,10 @@ jobs:
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         run: |
-          docker build -t "${ACR_REGISTRY}/lnmp-php:${GITHUB_SHA}" -t "${ACR_REGISTRY}/lnmp-php:latest" ./01-lnmp/php
+          docker build -t "${ACR_REGISTRY}/fchen/lnmp-php:${GITHUB_SHA}" -t "${ACR_REGISTRY}/fchen/lnmp-php:latest" ./01-lnmp/php
           echo "$ACR_PASSWORD" | docker login "$ACR_REGISTRY" -u "$ACR_USERNAME" --password-stdin
-          docker push "${ACR_REGISTRY}/lnmp-php:${GITHUB_SHA}"
-          docker push "${ACR_REGISTRY}/lnmp-php:latest"
+          docker push "${ACR_REGISTRY}/fchen/lnmp-php:${GITHUB_SHA}"
+          docker push "${ACR_REGISTRY}/fchen/lnmp-php:latest"
 
       - name: ③ 上传 01-lnmp 到服务器
         uses: appleboy/scp-action@v0.1.7

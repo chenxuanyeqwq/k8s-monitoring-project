@@ -19,8 +19,8 @@ ACR_PASSWORD=${ACR_PASSWORD:?必须设置 ACR_PASSWORD}
 echo "==> 登录镜像仓库 ${ACR_REGISTRY}"
 echo "$ACR_PASSWORD" | docker login "$ACR_REGISTRY" -u "$ACR_USERNAME" --password-stdin
 
-echo "==> 拉取旧镜像 ${ACR_REGISTRY}/lnmp-php:${SHA}"
-docker pull "${ACR_REGISTRY}/lnmp-php:${SHA}"
+echo "==> 拉取旧镜像 ${ACR_REGISTRY}/fchen/lnmp-php:${SHA}"
+docker pull "${ACR_REGISTRY}/fchen/lnmp-php:${SHA}"
 
 echo "==> 用旧 tag 重启容器"
 export ACR_REGISTRY

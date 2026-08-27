@@ -13,7 +13,7 @@ IMAGE_TAG=${IMAGE_TAG:-latest}
 echo "==> [1/3] 登录镜像仓库 ${ACR_REGISTRY}"
 echo "$ACR_PASSWORD" | docker login "$ACR_REGISTRY" -u "$ACR_USERNAME" --password-stdin
 
-echo "==> [2/3] 拉取并启动容器 (${ACR_REGISTRY}/lnmp-php:${IMAGE_TAG})"
+echo "==> [2/3] 拉取并启动容器 (${ACR_REGISTRY}/fchen/lnmp-php:${IMAGE_TAG})"
 export ACR_REGISTRY IMAGE_TAG
 docker compose up -d --pull always
 
