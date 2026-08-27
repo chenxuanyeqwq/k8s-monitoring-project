@@ -108,11 +108,45 @@ li.msg:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
 .toast.hide { opacity: 0; transform: translateX(-50%) translateY(-8px); transition: opacity .3s, transform .3s; }
 @keyframes toast-in { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%); } }
 
+/* ---- 项目展示（信息卡 + 版本记录 + Grafana 截图）---- */
+header.site h1 { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.status {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-size: .72rem; font-weight: 600; color: #059669;
+  background: #ecfdf5; border: 1px solid #a7f3d0;
+  padding: .2rem .6rem; border-radius: 999px;
+}
+.status i { width: 7px; height: 7px; border-radius: 50%; background: #10b981; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+.proj { padding: 1rem 1.1rem; }
+.proj-head { display: flex; align-items: center; justify-content: space-between; font-weight: 700; margin-bottom: .75rem; }
+.proj-ver { font-size: .75rem; color: #fff; background: var(--accent); padding: .15rem .55rem; border-radius: 999px; }
+.proj-grid { display: flex; flex-direction: column; gap: .6rem; }
+.proj-item { display: flex; gap: .6rem; font-size: .85rem; line-height: 1.5; }
+.proj-item .k { flex-shrink: 0; min-width: 3.6em; color: var(--accent); font-weight: 700; }
+.proj-item .v { color: var(--text); }
+
+.versions { margin-top: .8rem; border-top: 1px dashed var(--border); padding-top: .6rem; font-size: .8rem; }
+.versions summary { cursor: pointer; color: var(--muted); user-select: none; }
+.versions ul { margin: .5rem 0 0; padding-left: 1.1rem; color: var(--muted); display: flex; flex-direction: column; gap: .15rem; }
+.versions b { color: var(--text); }
+
+.grafana { margin-bottom: 1.5rem; padding: .6rem; }
+.grafana img { width: 100%; border-radius: 8px; display: block; border: 1px solid var(--border); }
+.grafana figcaption { font-size: .75rem; color: var(--muted); text-align: center; margin-top: .5rem; }
+.grafana strong { color: var(--accent); }
+
+.foot { text-align: center; color: var(--muted); font-size: .75rem; margin-top: -1rem; padding-bottom: 1.5rem; }
+.foot a { color: var(--accent); }
+
 @media (max-width: 480px) {
   main { padding: 1.5rem .75rem 2.5rem; }
   header.site h1 { font-size: 1.3rem; }
   li.msg { padding: .8rem .85rem; }
   input[type=text], textarea, button[type=submit] { min-height: 44px; }
+  .proj-item { flex-direction: column; gap: .1rem; }
+  .proj-item .k { min-width: 0; }
 }
 </style>
 </head>
@@ -122,9 +156,42 @@ li.msg:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
 <?php endif; ?>
 <main>
   <header class="site">
-    <h1>LNMP 留言板</h1>
-    <p class="meta">Nginx → PHP-FPM → MySQL · 数据存 MySQL,删容器不丢</p>
+    <h1>LNMP 留言板 <span class="status"><i></i>在线监控中</span></h1>
+    <p class="meta">运行于阿里云 · Docker + Kubernetes · Prometheus 监控 · CI/CD 自动发布</p>
   </header>
+
+  <!-- 项目信息卡：给招聘 HR 快速看懂技术栈 -->
+  <section class="card proj">
+    <div class="proj-head">📦 项目信息 <span class="proj-ver">v4.1</span></div>
+    <div class="proj-grid">
+      <div class="proj-item"><span class="k">架构</span><span class="v">Nginx → PHP-FPM → MySQL 8（Docker Compose 三容器）</span></div>
+      <div class="proj-item"><span class="k">部署</span><span class="v">Docker + Kubernetes 上云 · 服务器只拉镜像 · 一键回滚</span></div>
+      <div class="proj-item"><span class="k">可观测性</span><span class="v">Prometheus + Grafana 看板 · Alertmanager→飞书告警 · 黑盒探测 · Loki 日志</span></div>
+      <div class="proj-item"><span class="k">CI/CD</span><span class="v">GitHub Actions 自动发布 · ACR 镜像仓库 · 单测质量门</span></div>
+    </div>
+    <details class="versions">
+      <summary>版本记录（v1.0 → v4.1）</summary>
+      <ul>
+        <li><b>v4.1</b> 单测质量门 · 测试不过不部署</li>
+        <li><b>v4.0</b> 镜像仓库化 · CI 构建 + ACR + 一键回滚</li>
+        <li><b>v3.6</b> 全站 HTTPS</li>
+        <li><b>v3.5</b> 日志采集 Loki</li>
+        <li><b>v3.4</b> 域名上线 fchen.xyz</li>
+        <li><b>v3.3</b> 应用层监控</li>
+        <li><b>v3.2</b> 云监控告警上云</li>
+        <li><b>v3.1</b> 前端 SaaS 版</li>
+        <li><b>v3.0</b> 上云 + CI/CD</li>
+        <li><b>v2.0</b> 白盒 + 黑盒探测</li>
+        <li><b>v1.0</b> 五模块（LNMP / k3s / 监控 / 脚本 / 飞书桥）</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- Grafana 监控看板截图（静态演示，实时看板需联系索取只读访客账号） -->
+  <figure class="card grafana">
+    <img src="grafana.png" alt="Grafana 监控看板截图" loading="lazy">
+    <figcaption>Grafana 监控看板（Prometheus 采集 · CPU/内存/磁盘）· 想看实时看板可联系索取<strong>只读访客账号</strong></figcaption>
+  </figure>
 
   <form class="card" method="post">
     <input type="text" name="name" placeholder="你的名字" required>
@@ -154,6 +221,8 @@ li.msg:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
   </ul>
   <?php endif; ?>
 </main>
+
+<footer class="foot">Powered by Docker + Kubernetes + Prometheus 监控 · <a href="https://github.com/chenxuanyeqwq/k8s-monitoring-project" target="_blank" rel="noopener">GitHub</a> · v4.1</footer>
 
 <script>
 // 友好时间：把 data-time(ISO) 转成"刚刚/x 分钟前/昨天"等
