@@ -12,6 +12,9 @@ services:
   nginx:
     image: nginx:1.27-alpine
     container_name: lnmp-nginx
+    restart: unless-stopped     # 服务器重启后自动拉起（2026-08-27 OOM 事故后补）
+    mem_limit: 128m             # 内存护栏：单个容器不能把整机拖死
+    mem_reservation: 64m
     ports:
       - "8080:80"                     # 过渡期保留(HTTP 旧入口,验证完可去)
       - "80:80"                       # HTTP -> Let's Encrypt 验证 + 301 到 HTTPS
@@ -29,6 +32,9 @@ services:
     # 不在 compose 里 build，是为了避开 buildkit 在 Windows 上的构建卡顿
     image: lnmp-php
     container_name: lnmp-php
+    restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 128m
     volumes:
       - ./php/www:/var/www/html               # 代码由宿主机挂载，镜像只提供运行时
     environment:
@@ -43,6 +49,9 @@ services:
   db:
     image: mysql:8.0
     container_name: lnmp-mysql
+    restart: unless-stopped
+    mem_limit: 768m            # MySQL 是最大头(实测~384M)，锁住上限防止吃穿 2G
+    mem_reservation: 384m
     environment:
       MYSQL_ROOT_PASSWORD: root123
       MYSQL_DATABASE: guestbook
@@ -51,7 +60,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql                              # 数据落盘 -> 删容器不丢
       - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro  # 首次启动自动执行建表
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --innodb-buffer-pool-size=128M
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot123"]
       interval: 5s

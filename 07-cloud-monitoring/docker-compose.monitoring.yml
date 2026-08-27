@@ -6,6 +6,7 @@ services:
   node-exporter:
     image: prom/node-exporter:v1.8.2
     container_name: cm-node-exporter
+    mem_limit: 128m
     pid: host
     command:
       - '--path.procfs=/host/proc'
@@ -18,6 +19,7 @@ services:
   prometheus:
     image: prom/prometheus:v2.53.0
     container_name: cm-prometheus
+    mem_limit: 256m
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -30,6 +32,7 @@ services:
   alertmanager:
     image: prom/alertmanager:v0.27.0
     container_name: cm-alertmanager
+    mem_limit: 128m
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
@@ -40,12 +43,14 @@ services:
   feishu-bridge:
     build: ./feishu-bridge
     container_name: cm-feishu-bridge
+    mem_limit: 64m
     env_file: ../.env
     restart: unless-stopped
 
   grafana:
     image: grafana/grafana:11.2.0
     container_name: cm-grafana
+    mem_limit: 256m
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?必须设置 GRAFANA_ADMIN_PASSWORD}
@@ -60,6 +65,7 @@ services:
   nginx-exporter:
     image: nginx/nginx-prometheus-exporter:1.1.0
     container_name: cm-nginx-exporter
+    mem_limit: 64m
     command: ['-nginx.scrape-uri=http://nginx/stub_status']
     networks: [default, lnmp]
     restart: unless-stopped
@@ -67,6 +73,7 @@ services:
   mysqld-exporter:
     image: prom/mysqld-exporter:v0.14.0   # v0.15 有 .my.cnf 解析坑,用 v0.14 直接吃 DATA_SOURCE_NAME
     container_name: cm-mysqld-exporter
+    mem_limit: 64m
     environment:
       DATA_SOURCE_NAME: "exporter:exporter123@(db:3306)/"
     networks: [default, lnmp]
@@ -76,6 +83,7 @@ services:
   loki:
     image: grafana/loki:3.3.2
     container_name: cm-loki
+    mem_limit: 256m
     command:
       - '-config.file=/etc/loki/loki-config.yml'
     volumes:
@@ -86,6 +94,7 @@ services:
   promtail:
     image: grafana/promtail:3.3.2
     container_name: cm-promtail
+    mem_limit: 128m
     command:
       - '-config.file=/etc/promtail/promtail-config.yml'
     volumes:
