@@ -28,9 +28,8 @@ services:
       - php
 
   php:
-    # 用预先构建好的镜像（构建命令：docker build -t lnmp-php ./php）
-    # 不在 compose 里 build，是为了避开 buildkit 在 Windows 上的构建卡顿
-    image: lnmp-php
+    # 阶段2：镜像由 CI 构建推送 ACR，服务器只拉取（不再在服务器/本地 build）
+    image: ${ACR_REGISTRY}/lnmp-php:${IMAGE_TAG:-latest}
     container_name: lnmp-php
     restart: unless-stopped
     mem_limit: 256m
