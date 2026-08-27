@@ -18,7 +18,8 @@ on:
   push:
     branches: [main]
     paths:
-      - '01-lnmp/**'               # 只有动了 LNMP 代码才触发
+      - '01-lnmp/**'               # 动了 LNMP 代码才触发
+      - '06-blackbox/**'           # v4.1：探测脚本改动也触发（跑测试+部署）
       - '.github/workflows/deploy.yml'
   workflow_dispatch: {}            # 也支持手动在 GitHub 页面点"运行"
 
@@ -28,6 +29,10 @@ jobs:
     steps:
       - name: ① Checkout 代码
         uses: actions/checkout@v4
+
+      # v4.1：部署前质量门——单元测试不过就不构建不部署
+      - name: 单元测试（service_probe 状态机）
+        run: python -m unittest discover -s 06-blackbox -p "test_*.py"
 
       # 阶段2(8.27 OOM 后)：构建挪到 CI，服务器只拉镜像
       - name: ② CI 构建并推送镜像到 ACR
