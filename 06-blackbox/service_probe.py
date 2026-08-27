@@ -57,7 +57,7 @@ def apply_probe_result(rec, ok, reason, threshold):
         new["fail_count"] = 0
         return new, "ok"
     new["fail_count"] = rec.get("fail_count", 0) + 1
-    if new["fail_count"] > threshold and rec.get("status") != "down":  # 临时改坏:>= 变 >,测试应红
+    if new["fail_count"] >= threshold and rec.get("status") != "down":
         new["status"] = "down"
         return new, "alert"
     return new, "warn"
