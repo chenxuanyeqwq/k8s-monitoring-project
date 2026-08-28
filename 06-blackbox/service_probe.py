@@ -12,10 +12,15 @@
 依赖：Python 3 标准库（urllib / json / os / sys / time），无需第三方库。
 """
 import os
+import sys
 import json
 import time
 import urllib.request
 from urllib.error import HTTPError, URLError
+
+# 复用项目根的 feishu_send 共享模块(带限流退避重试,统一检查业务 code)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from feishu_send import load_webhook, send_feishu
 
 
 # 探测目标：每个目标独立判断、独立告警
@@ -63,38 +68,6 @@ def apply_probe_result(rec, ok, reason, threshold):
     return new, "warn"
 
 
-def send_feishu(text, webhook):
-    """推飞书文本消息，返回 HTTP 状态码。"""
-    payload = {"msg_type": "text", "content": {"text": text}}
-    req = urllib.request.Request(
-        webhook,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        return resp.status
-
-
-def load_webhook():
-    """环境变量优先，其次读项目根 .env（复用 disk_alert.py 逻辑）。"""
-    hook = os.getenv("FEISHU_WEBHOOK", "").strip()
-    if hook:
-        return hook
-    here = os.path.dirname(os.path.abspath(__file__))
-    for env_path in (os.path.join(here, "..", ".env"), os.path.join(here, ".env")):
-        try:
-            with open(env_path, encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("FEISHU_WEBHOOK="):
-                        val = line.split("=", 1)[1].strip().strip("\"'")
-                        if val:
-                            return val
-        except OSError:
-            continue
-    return ""
-
-
 def load_state():
     try:
         with open(STATE_FILE, encoding="utf-8") as f:
@@ -139,8 +112,8 @@ def push_feishu(text, webhook):
         print("  (未配置 FEISHU_WEBHOOK，跳过推送)")
         return
     try:
-        status = send_feishu(text, webhook)
-        print("  已推送飞书 (HTTP %d)" % status)
+        code = send_feishu(text, webhook)
+        print("  已推送飞书 (code=%d)" % code)
     except Exception as e:
         print("  [ERROR] 飞书推送失败（不影响探测）：%s" % e)
 
