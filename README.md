@@ -2,7 +2,7 @@
 
 一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目，现已**上云 + 全链路监控告警 + 日志采集 + 全站 HTTPS + 域名上线**。
 
-> 📌 **当前版本 v4.1**：LNMP 上云公网可访问 + **生产级 CI/CD（CI 构建推 ACR + 服务器只拉 + 一键回滚 + 单测质量门）** + **云监控告警 + 应用层监控** + **日志采集(Loki+promtail)** + **全站 HTTPS(Let's Encrypt)** + **域名 fchen.xyz 上线**。v4.0 = 镜像仓库化;v3.6 = 全站HTTPS;v3.5 = 日志采集;v3.4 = 域名上线;v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
+> 📌 **当前版本 v4.2**：LNMP 上云公网可访问 + **生产级 CI/CD（CI 构建推 ACR + 服务器只拉 + 一键回滚 + 单测质量门）** + **云监控告警 + 应用层监控** + **日志采集(Loki+promtail)** + **全站 HTTPS(Let's Encrypt)** + **域名 fchen.xyz 上线** + **飞书推送加固(共享模块 + 限流重试)**。v4.1 = 单测质量门;v4.0 = 镜像仓库化;v3.6 = 全站HTTPS;v3.5 = 日志采集;v3.4 = 域名上线;v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
 
 ## 模块总览
 
@@ -48,6 +48,7 @@ Prometheus(本地)           kubectl -n monitoring port-forward svc/prometheus 9
 13. **2G 内存上 Loki 前必须先加 swap**（v3.5）→ `fallocate -l 2G /swapfile` + 写 fstab，否则内存紧张 OOM
 14. **acme.sh 默认用 ZeroSSL 签发失败**（v3.6）→ ZeroSSL API 返回 502 Bad Gateway、白等 6 分钟 → `--set-default-ca --server letsencrypt` 切 Let's Encrypt 秒签
 15. **CI/CD 自检失效**（v3.6）→ nginx 改 HTTPS 后 `curl localhost:8080` 返回 301 非 200 → 自检改 `curl -sk https://localhost`
+16. **飞书 webhook 整点限流静默丢消息**（v4.2）→ 每日内存报告 cron 09:00 整点撞飞书**租户级限流** `code=11232 frequency limited`，且脚本无重试 → 消息静默丢失。修复：项目根新增共享模块 `feishu_send.py`（统一发送 + 指数退避重试 0.5/1/2s），cron 挪到 **09:13** 避开整点高峰
 
 ## 告警链路（三层监控 → 飞书）
 
@@ -105,7 +106,7 @@ node-exporter → Prometheus(规则) → Alertmanager → feishu-bridge → 飞�
 - **Grafana**：`http://8.217.195.115:3000`，看云服务器 CPU/内存/磁盘三块面板
 - **CPU 告警**：`HighCPUUsage`（5min 平均 >80% 持续 1min）→ 飞书；实测压测触发 + 恢复均收到 ✅
 - **黑盒**：`06-blackbox` 挪到云服务器 cron 每 5 分钟探公网入口
-- **每日内存报告**：`memory_report.py` cron 每天 9 点推飞书（实测 code=0 推送成功）
+- **每日内存报告**：`memory_report.py` cron 每天 **9:13** 推飞书（v4.2 起避开整点限流高峰；实测 code=0 推送成功）
 - **安全**：安全组仅放行 8080/3000；Grafana 改默认密码（fail-fast 必填）；监控内部端口不暴露公网
 - 部署手册：`docs/云服务器监控部署手册.md`
 
@@ -184,13 +185,25 @@ GitHub push → CI 构建 php 镜像 → push ACR(commit sha + latest 双 tag) �
 - **触发**：`06-blackbox/**` 改动也触发（探测脚本逻辑变更会被测试把关）
 - **实测**：临时改坏阈值 → CI **红在测试步**，构建/部署未执行 → 线上不受影响 → 还原恢复绿
 
+### v4.2 飞书推送加固：共享发送模块 + 限流重试（2026-08-28）
+
+每日内存报告在 **09:00 整点**撞飞书**租户级限流**（`code=11232 frequency limited`），消息被静默丢弃——根因是 cron 卡整点（所有租户定时任务集中触发）+ 发送脚本无重试。本次修复：
+
+- **新增共享模块** `feishu_send.py`（项目根）：统一 `load_webhook` + `send_feishu`，带**指数退避重试**（0.5s→1s→2s），对限流类错误（`11232`/`230020`/`230006`/HTTP 429/5xx/网络错误）自动重试，成功才返回
+- **三脚本去重**：`memory_report.py` / `service_probe.py` / `disk_alert.py` 删除各自重复的发送实现（**净减 90 行**），统一走共享模块
+- **顺手修复隐藏 bug**：probe/disk 脚本之前**只看 HTTP 状态码、不查飞书业务 code**——限流恰恰是 HTTP 200 + body `code=11232`，等于一直"假装发送成功"，消息实际丢失
+- **cron 挪出整点**：每日内存报告 `09:00 → 09:13`，避开租户级定时任务的集中触发高峰
+- **日志加时间戳**：`memory_report.log` 每次运行带 `[YYYY-MM-DD HH:MM:SS]`，日后排查不再靠猜
+- **测试**：新增 `test_feishu_send.py`（**10 用例**，覆盖 11232 重试成功/重试耗尽抛错/不可重试立即抛/HTTP 429/5xx/网络错误）；原 `test_memory_report.py` 保持通过
+- **线上验证**：手动执行 `memory_report.py` → `code=0` 飞书实收 ✅；cron 已同步改 09:13
+
 ## 飞书 webhook 配置
 
 webhook 统一填在项目根 **`.env`**（`FEISHU_WEBHOOK=` 后面）：
 
 - 本地(k8s)链路：`bash 03-monitoring/set_webhook.sh` 注入 bridge 的 ConfigMap
 - 云服务器(compose)链路：把 `.env` 放到服务器 `/opt/k8s-project/.env`，`07-cloud-monitoring/docker-compose.monitoring.yml` 的 feishu-bridge 自动读取
-- `04-scripts/disk_alert.py`、`06-blackbox/service_probe.py`、`07-cloud-monitoring/memory_report.py` 都会自动读 `.env`
+- 三个直连飞书的脚本（`04-scripts/disk_alert.py`、`06-blackbox/service_probe.py`、`07-cloud-monitoring/memory_report.py`）统一复用项目根 **`feishu_send.py`**（自带限流退避重试）读取 `.env`
 
 ## 各模块 README
 
