@@ -21,3 +21,7 @@ __pycache__/
 # TLS 证书（HTTPS）与 Let's Encrypt 验证目录 —— 绝不可提交
 01-lnmp/nginx/ssl/
 01-lnmp/nginx/acme/
+
+# nginx 真实 access.log 目录（fail2ban 读取，2026-08-31 新增）—— 保留 .gitkeep
+01-lnmp/nginx/logs/*
+!01-lnmp/nginx/logs/.gitkeep
