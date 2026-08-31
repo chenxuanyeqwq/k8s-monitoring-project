@@ -2,7 +2,7 @@
 
 一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目，现已**上云 + 全链路监控告警 + 日志采集 + 全站 HTTPS + 域名上线**。
 
-> 📌 **当前版本 v4.2**：LNMP 上云公网可访问 + **生产级 CI/CD（CI 构建推 ACR + 服务器只拉 + 一键回滚 + 单测质量门）** + **云监控告警 + 应用层监控** + **日志采集(Loki+promtail)** + **全站 HTTPS(Let's Encrypt)** + **域名 fchen.xyz 上线** + **飞书推送加固(共享模块 + 限流重试)**。v4.1 = 单测质量门;v4.0 = 镜像仓库化;v3.6 = 全站HTTPS;v3.5 = 日志采集;v3.4 = 域名上线;v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
+> 📌 **当前版本 v4.3**：LNMP 上云公网可访问 + **生产级 CI/CD（CI 构建推 ACR + 服务器只拉 + 一键回滚 + 单测质量门）** + **云监控告警 + 应用层监控** + **日志采集(Loki+promtail)** + **全站 HTTPS(Let's Encrypt)** + **域名 fchen.xyz 上线** + **飞书推送加固(共享模块 + 限流重试)** + **公网扫描防护(nginx 加固 + fail2ban 自动封禁)**。v4.2 = 飞书推送加固;v4.1 = 单测质量门;v4.0 = 镜像仓库化;v3.6 = 全站HTTPS;v3.5 = 日志采集;v3.4 = 域名上线;v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
 
 ## 模块总览
 
@@ -49,6 +49,7 @@ Prometheus(本地)           kubectl -n monitoring port-forward svc/prometheus 9
 14. **acme.sh 默认用 ZeroSSL 签发失败**（v3.6）→ ZeroSSL API 返回 502 Bad Gateway、白等 6 分钟 → `--set-default-ca --server letsencrypt` 切 Let's Encrypt 秒签
 15. **CI/CD 自检失效**（v3.6）→ nginx 改 HTTPS 后 `curl localhost:8080` 返回 301 非 200 → 自检改 `curl -sk https://localhost`
 16. **飞书 webhook 整点限流静默丢消息**（v4.2）→ 每日内存报告 cron 09:00 整点撞飞书**租户级限流** `code=11232 frequency limited`，且脚本无重试 → 消息静默丢失。修复：项目根新增共享模块 `feishu_send.py`（统一发送 + 指数退避重试 0.5/1/2s），cron 挪到 **09:13** 避开整点高峰
+17. **公网扫描器打爆请求率+MySQL 查询率**（v4.3）→ GCP 台北 VM `34.80.5.60` 25 分钟打 8726 次，路径全是凭据泄露/SSRF 探测（`/.env`、`/.git/config`、`/actuator`、`169.254.169.254`），UA 伪装成 Perplexity/ChatGPT/Claude。**放大器**：nginx `try_files $uri $uri/ /index.php` 让任意未知路径都落 index.php 查 MySQL，扫描器每请求都放大成一次查询。**关键坑**：Docker 端口流量走 **FORWARD/DOCKER-USER 链、不过 INPUT 链**，封 INPUT 不生效，必须 `chain=DOCKER-USER`。修复：nginx 敏感路径 444 + 未知路径 `=404` 关放大器 + `limit_req` 限流 + **fail2ban 自动封禁**
 
 ## 告警链路（三层监控 → 飞书）
 
@@ -196,6 +197,18 @@ GitHub push → CI 构建 php 镜像 → push ACR(commit sha + latest 双 tag) �
 - **日志加时间戳**：`memory_report.log` 每次运行带 `[YYYY-MM-DD HH:MM:SS]`，日后排查不再靠猜
 - **测试**：新增 `test_feishu_send.py`（**10 用例**，覆盖 11232 重试成功/重试耗尽抛错/不可重试立即抛/HTTP 429/5xx/网络错误）；原 `test_memory_report.py` 保持通过
 - **线上验证**：手动执行 `memory_report.py` → `code=0` 飞书实收 ✅；cron 已同步改 09:13
+
+### v4.3 公网扫描防护：nginx 加固 + fail2ban 自动封禁（2026-08-31）
+
+公网 IP 被自动化扫描器盯上——GCP 台北 VM `34.80.5.60` 25 分钟打 8726 次，路径全是凭据泄露/SSRF 探测（`/.env`、`/.git/config`、`/.aws/credentials`、`/actuator`、`/webhook?url=169.254.169.254/...`、wp-config 系列），UA 伪装成 Perplexity/ChatGPT/Claude/Applebot。更麻烦的是 nginx 的 **"放大器"** 让扫描请求放大成 MySQL 查询，请求率与查询率同步飙升。本次纵深防御加固：
+
+- **① 手动封禁**：`iptables -I DOCKER-USER -s <IP>/32 -j DROP`。⚠️ **关键坑**：Docker 端口流量走 FORWARD→DOCKER-USER 链、**不过 INPUT 链**（`-P FORWARD DROP`），封 INPUT 不生效，必须用 DOCKER-USER 链
+- **② nginx 关放大器**：`location /` 的 `try_files ... /index.php` 改为 `try_files $uri $uri/ =404`——未知路径不再落 index.php，扫描器刷 N 次只产生 N 个空 404，不再放大成 PHP+MySQL
+- **③ nginx 敏感路径屏蔽**：`/.env`、`/.git`、`/.aws`、`/.ssh`、wp-config*、`/actuator`、`*.swp/*.old/*.bak`、`169.254.169.254`(SSRF) → `return 444` 断连（比 404 更省带宽，仍计入 access_log）
+- **④ nginx 单 IP 限流**：`limit_req_zone` 10r/s + burst（php 路径收紧 burst 5），兜底扫描器刷爆
+- **⑤ fail2ban 自动封禁**：filter `nginx-probe`（按请求路径特征匹配，与状态码 301/404/444 无关）+ jail（60s 内 6 次命中封 1h）+ `action=iptables-multiport[chain=DOCKER-USER]`；读 nginx bind mount 出的真实 access.log（**stdout 双写保住 Loki**），配 systemd 内存护栏（MemoryMax=128M，实测 RSS 15MB）+ logrotate
+- **验证**：加固后 `/.env`→444、`/random/nonexistent`→404（不再 200）、`/`→200、POST→302 全对；Loki 仍收日志；fail2ban-regex 离线自检 4/4 命中；CI/CD 部署后加固不被覆盖
+- **相关**：`docs/2026-08-31-公网扫描防护记录.md`
 
 ## 飞书 webhook 配置
 
