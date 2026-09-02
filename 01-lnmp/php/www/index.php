@@ -5,6 +5,7 @@
  * 功能：展示留言 + 提交留言 + 友好时间 + 提交反馈 + 移动端适配
  */
 date_default_timezone_set('Asia/Shanghai');   // 供 ISO 输出统一时区
+require __DIR__ . '/lib.php';
 
 $host = getenv('MYSQL_HOST') ?: 'db';
 $user = getenv('MYSQL_USER') ?: 'guest';
@@ -16,15 +17,15 @@ try {
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
     http_response_code(500);
-    die("数据库连接失败：" . htmlspecialchars($e->getMessage()));
+    die("数据库连接失败：" . escape($e->getMessage()));
 }
 
 // 提交：prepared statement 防注入 + PRG 防重复提交
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name    = trim($_POST['name'] ?? '');
-    $content = trim($_POST['content'] ?? '');
+    $name    = clean_input($_POST['name'] ?? null);
+    $content = clean_input($_POST['content'] ?? null);
     $inserted = false;
-    if ($name !== '' && $content !== '') {
+    if (is_valid_message($name, $content)) {
         $stmt = $pdo->prepare("INSERT INTO messages (name, content) VALUES (?, ?)");
         $stmt->execute([$name, $content]);
         $inserted = true;
@@ -213,12 +214,12 @@ header.site h1 { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap
     <?php foreach ($messages as $m): ?>
     <li class="msg card">
       <div class="msg-head">
-        <?php $initial = function_exists('mb_substr') ? mb_substr($m['name'], 0, 1, 'UTF-8') : substr($m['name'], 0, 1); ?>
-        <span class="avatar"><?= htmlspecialchars($initial) ?></span>
-        <span class="msg-name"><?= htmlspecialchars($m['name']) ?></span>
-        <span class="msg-time" data-time="<?= date('c', strtotime($m['created_at'] . ' UTC')) ?>"><?= htmlspecialchars($m['created_at']) ?></span>
+        <?php $initial = avatar_initial($m['name']); ?>
+        <span class="avatar"><?= escape($initial) ?></span>
+        <span class="msg-name"><?= escape($m['name']) ?></span>
+        <span class="msg-time" data-time="<?= date('c', strtotime($m['created_at'] . ' UTC')) ?>"><?= escape($m['created_at']) ?></span>
       </div>
-      <div class="msg-body"><?= nl2br(htmlspecialchars($m['content'])) ?></div>
+      <div class="msg-body"><?= render_content($m['content']) ?></div>
     </li>
     <?php endforeach; ?>
   </ul>
