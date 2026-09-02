@@ -1,0 +1,29 @@
+# 临时诊断 workflow（2026-09-02 网站挂）：
+# SSH 直连 banner 超时 → 用 GitHub Actions 带 SERVER_PASSWORD 从 GitHub IP 跳板进去，
+# 只读收集诊断数据，不部署、不改服务器。用后删除。
+name: Diag Server
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH 只读诊断
+        uses: appleboy/ssh-action@v1.0.3
+        timeout-minutes: 5
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          command_timeout: "180s"
+          script: |
+            echo "=== uptime/load ==="; uptime
+            echo "=== free -h ==="; free -h
+            echo "=== df -h ==="; df -h / /var /var/lib/docker 2>/dev/null
+            echo "=== dmesg OOM (tail 30) ==="; dmesg | grep -i -E 'oom|killed process' | tail -30
+            echo "=== docker ps -a ==="; docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+            echo "=== mysql container logs (tail 40) ==="; MYSQL_C=$(docker ps -aq -f name=mysql | head -1); if [ -n "$MYSQL_C" ]; then docker logs --tail 40 "$MYSQL_C"; else echo "NO mysql container found"; fi
+            echo "=== top -bn1 (head 25) ==="; top -bn1 | head -25
+            echo "=== swap used (per proc) ==="; for p in /proc/[0-9]*/status; do awk '/VmSwap|Name/{printf "%s %s\n",$2,$3}' "$p" 2>/dev/null; done | awk '/kB/{if($2+0>20000) print}' | sort -k2 -rn | head -15
