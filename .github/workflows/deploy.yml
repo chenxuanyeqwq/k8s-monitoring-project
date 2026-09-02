@@ -40,8 +40,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: 单元测试（service_probe 状态机）
-        run: python -m unittest discover -s 06-blackbox -p "test_*.py"
+      - name: Python 单元测试（全部套件）
+        run: |
+          python -m unittest discover -s 06-blackbox -p "test_*.py"
+          python -m unittest test_feishu_send
+          python -m unittest discover -s 07-cloud-monitoring -p "test_*.py"
+      - name: PHP 应用单元测试
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring
+      - name: 运行 PHP 应用测试
+        run: php 01-lnmp/php/www/test_guestbook.php
 
   build:
     needs: test
