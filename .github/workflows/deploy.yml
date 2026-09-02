@@ -1,52 +1,72 @@
-# CI/CD 流水线:代码 push 到 main → CI 构建镜像推 ACR → 服务器只拉镜像部署
-# 工作原理:
-#   1. checkout 拉取代码
-#   2. CI 构建 php 镜像 → 打 <sha>+latest 双 tag → 推送阿里云 ACR
-#   3. scp 把 01-lnmp 目录上传到服务器 /opt/k8s-project
-#   4. ssh 在服务器上执行 01-lnmp/deploy.sh(登录ACR + 拉镜像 + compose up + 自检)
-#
-# 前置配置(GitHub 仓库 Settings → Secrets and variables → Actions):
-#   SERVER_HOST       = 服务器公网 IP,如 8.217.195.115
-#   SERVER_USER       = SSH 用户名,如 root
-#   SERVER_PASSWORD   = SSH 密码(root 密码)
-#   ACR_REGISTRY      = registry.cn-hangzhou.aliyuncs.com
-#   ACR_USERNAME      = ACR 访问凭证用户名
-#   ACR_PASSWORD      = ACR 访问凭证固定密码
 name: Deploy to Aliyun ECS
 
 on:
   push:
     branches: [main]
     paths:
-      - '01-lnmp/**'               # 动了 LNMP 代码才触发
-      - '06-blackbox/**'           # v4.1：探测脚本改动也触发（跑测试+部署）
+      - '01-lnmp/**'
+      - '06-blackbox/**'
       - '.github/workflows/deploy.yml'
-  workflow_dispatch: {}            # 也支持手动在 GitHub 页面点"运行"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  deploy:
+  lint:
     runs-on: ubuntu-latest
     steps:
-      - name: ① Checkout 代码
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: PHP 语法检查
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: php -l 全部 PHP 文件
+        run: |
+          php -l 01-lnmp/php/www/index.php
+          php -l 01-lnmp/php/www/lib.php
+          php -l 01-lnmp/php/www/test_guestbook.php
+      - name: shellcheck 部署脚本
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q shellcheck
+          shellcheck 01-lnmp/deploy.sh 01-lnmp/rollback.sh
+      - name: Python 语法检查
+        run: python -m py_compile test_feishu_send.py feishu_send.py 06-blackbox/service_probe.py 06-blackbox/test_service_probe.py
 
-      # v4.1：部署前质量门——单元测试不过就不构建不部署
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: 单元测试（service_probe 状态机）
         run: python -m unittest discover -s 06-blackbox -p "test_*.py"
 
-      # 阶段2(8.27 OOM 后)：构建挪到 CI，服务器只拉镜像
-      - name: ② CI 构建并推送镜像到 ACR
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 构建并推送镜像到 ACR
         env:
           ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         run: |
-          docker build --build-arg APP_BUILD=${GITHUB_SHA} -t "${ACR_REGISTRY}/fchen/lnmp-php:${GITHUB_SHA}" -t "${ACR_REGISTRY}/fchen/lnmp-php:latest" ./01-lnmp/php
+          docker build --build-arg APP_BUILD=${GITHUB_SHA} \
+            -t "${ACR_REGISTRY}/fchen/lnmp-php:${GITHUB_SHA}" \
+            -t "${ACR_REGISTRY}/fchen/lnmp-php:latest" ./01-lnmp/php
           echo "$ACR_PASSWORD" | docker login "$ACR_REGISTRY" -u "$ACR_USERNAME" --password-stdin
           docker push "${ACR_REGISTRY}/fchen/lnmp-php:${GITHUB_SHA}"
           docker push "${ACR_REGISTRY}/fchen/lnmp-php:latest"
 
-      - name: ③ 上传 01-lnmp 到服务器
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 上传 01-lnmp 到服务器
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -54,8 +74,7 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           source: "01-lnmp"
           target: "/opt/k8s-project"
-
-      - name: ④ 远程执行部署
+      - name: 远程执行部署
         uses: appleboy/ssh-action@v1.0.3
         env:
           ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}
