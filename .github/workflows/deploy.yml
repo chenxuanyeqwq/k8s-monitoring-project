@@ -6,6 +6,9 @@ on:
     paths:
       - '01-lnmp/**'
       - '06-blackbox/**'
+      - 'feishu_send.py'
+      - 'test_feishu_send.py'
+      - '07-cloud-monitoring/**'
       - '.github/workflows/deploy.yml'
   workflow_dispatch: {}
 
@@ -45,7 +48,7 @@ jobs:
           python -m unittest discover -s 06-blackbox -p "test_*.py"
           python -m unittest test_feishu_send
           python -m unittest discover -s 07-cloud-monitoring -p "test_*.py"
-      - name: PHP 应用单元测试
+      - name: 安装 PHP 运行时
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
@@ -101,6 +104,12 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    # 审批门配置（GitHub 侧状态，仓库内不可见，需在仓库创建后手动配置一次）：
+    #   gh api -X PUT repos/{owner}/{repo}/environments/production --input - <<'JSON'
+    #   {"reviewers":[{"type":"User","id":<USER_ID>}]}
+    #   JSON
+    # 该 PUT 为 environment 设置 required_reviewers 保护规则，使 deploy 进入 waiting，
+    # 需审批人在 GitHub UI 点击 Approve 后才会执行（reviewer id 须为整数，不能带引号）。
     environment: production
     steps:
       - uses: actions/checkout@v4
@@ -118,8 +127,9 @@ jobs:
           ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          IMAGE_TAG: ${{ github.sha }}
         with:
-          envs: ACR_REGISTRY,ACR_USERNAME,ACR_PASSWORD
+          envs: ACR_REGISTRY,ACR_USERNAME,ACR_PASSWORD,IMAGE_TAG
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
