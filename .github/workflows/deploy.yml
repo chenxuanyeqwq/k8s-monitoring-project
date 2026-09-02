@@ -58,15 +58,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: 构建并推送镜像到 ACR
+      - name: 构建镜像
+        env:
+          ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}
+        run: |
+          docker build --build-arg APP_BUILD=${GITHUB_SHA} \
+            -t "${ACR_REGISTRY}/fchen/lnmp-php:${GITHUB_SHA}" \
+            -t "${ACR_REGISTRY}/fchen/lnmp-php:test-${GITHUB_SHA}" \
+            -t "${ACR_REGISTRY}/fchen/lnmp-php:latest" ./01-lnmp/php
+      - name: 集成冒烟测试（起真实镜像，curl 读+写）
+        env:
+          TEST_IMAGE: ${{ secrets.ACR_REGISTRY }}/fchen/lnmp-php:test-${{ github.sha }}
+        run: |
+          cd 01-lnmp
+          docker compose -f docker-compose.test.yml up -d
+          # 等待应用就绪（db healthy + php 起来，最多 80s）
+          code=""
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/ || true)
+            [ "$code" = "200" ] && break
+            sleep 2
+          done
+          [ "$code" = "200" ] || { echo "❌ 应用未就绪 code=$code"; docker compose -f docker-compose.test.yml logs php; exit 1; }
+          # 读：页面渲染出表单
+          curl -s http://localhost:8080/ | grep -q "写点什么" || { echo "❌ 读失败：页面未渲染"; exit 1; }
+          # 写：POST 一条留言
+          curl -s -X POST -d "name=ci&content=ci-smoke-$(date +%s)" http://localhost:8080/ -o /dev/null
+          # 再读：确认留言落库
+          curl -s http://localhost:8080/ | grep -q "ci-smoke" || { echo "❌ 写失败：留言未落库"; exit 1; }
+          echo "✅ 集成冒烟通过（读 + 写）"
+          docker compose -f docker-compose.test.yml down -v
+      - name: 推送镜像到 ACR
         env:
           ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}
           ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
           ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
         run: |
-          docker build --build-arg APP_BUILD=${GITHUB_SHA} \
-            -t "${ACR_REGISTRY}/fchen/lnmp-php:${GITHUB_SHA}" \
-            -t "${ACR_REGISTRY}/fchen/lnmp-php:latest" ./01-lnmp/php
           echo "$ACR_PASSWORD" | docker login "$ACR_REGISTRY" -u "$ACR_USERNAME" --password-stdin
           docker push "${ACR_REGISTRY}/fchen/lnmp-php:${GITHUB_SHA}"
           docker push "${ACR_REGISTRY}/fchen/lnmp-php:latest"
