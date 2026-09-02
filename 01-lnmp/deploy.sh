@@ -41,8 +41,8 @@ fi
 echo "==> [4/4] 安全冒烟（加固回归校验）"
 for path in "/.env" "/actuator"; do
   code=$(curl -sk -o /dev/null -w "%{http_code}" "https://localhost$path" || true)
-  echo "  $path -> $code (期望 444)"
-  if [ "$code" != "444" ]; then
+  echo "  $path -> $code (期望 444；nginx 444=不发响应直接关连接→curl 报 000，两者均视为加固生效)"
+  if [ "$code" != "444" ] && [ "$code" != "000" ]; then
     echo "❌ 安全冒烟失败: $path 返回 $code，加固可能被冲掉"
     exit 1
   fi
