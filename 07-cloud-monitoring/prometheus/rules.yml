@@ -35,3 +35,13 @@ groups:
         annotations:
           summary: "MySQL 不可达"
           description: "mysqld-exporter 无法连接数据库"
+      # 2026-09-02 事故后新增：2G 宿主机可用内存长期 ~300-400MiB，
+      # 缺内存预警 → 崩溃前无人知道。低于 300MiB 持续 10 分钟即告警（前置预警，比黑盒探测早）
+      - alert: LowMemory
+        expr: node_memory_MemAvailable_bytes < 300 * 1024 * 1024
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "服务器可用内存不足"
+          description: "实例 {{ $labels.instance }} 可用内存低于 300MiB（当前 {{ $value | humanize1024 }}B），存在内存耗竭/级联崩溃风险"

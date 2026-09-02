@@ -2,7 +2,7 @@
 
 一个贯穿容器化 → 编排 → 监控 → 自动化的完整项目，现已**上云 + 全链路监控告警 + 日志采集 + 全站 HTTPS + 域名上线**。
 
-> 📌 **当前版本 v4.3**：LNMP 上云公网可访问 + **生产级 CI/CD（CI 构建推 ACR + 服务器只拉 + 一键回滚 + 单测质量门）** + **云监控告警 + 应用层监控** + **日志采集(Loki+promtail)** + **全站 HTTPS(Let's Encrypt)** + **域名 fchen.xyz 上线** + **飞书推送加固(共享模块 + 限流重试)** + **公网扫描防护(nginx 加固 + fail2ban 自动封禁)**。v4.2 = 飞书推送加固;v4.1 = 单测质量门;v4.0 = 镜像仓库化;v3.6 = 全站HTTPS;v3.5 = 日志采集;v3.4 = 域名上线;v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
+> 📌 **当前版本 v4.4**：LNMP 上云公网可访问 + **生产级 CI/CD（CI 构建推 ACR + 服务器只拉 + 一键回滚 + 单测质量门）** + **云监控告警 + 应用层监控** + **日志采集(Loki+promtail)** + **全站 HTTPS(Let's Encrypt)** + **域名 fchen.xyz 上线** + **飞书推送加固(共享模块 + 限流重试)** + **公网扫描防护(nginx 加固 + fail2ban 自动封禁)** + **资源耗竭加固(停 snapd + LowMemory 内存预警)**。v4.3 = 公网扫描防护;v4.2 = 飞书推送加固;v4.1 = 单测质量门;v4.0 = 镜像仓库化;v3.6 = 全站HTTPS;v3.5 = 日志采集;v3.4 = 域名上线;v3.3 = 应用层监控;v3.2 = 云监控上云;v3.1 = 前端优化;v3.0 = 上云+CI/CD;v2.0 = 白盒+黑盒;v1.0 = 5 模块。
 
 ## 模块总览
 
@@ -50,6 +50,7 @@ Prometheus(本地)           kubectl -n monitoring port-forward svc/prometheus 9
 15. **CI/CD 自检失效**（v3.6）→ nginx 改 HTTPS 后 `curl localhost:8080` 返回 301 非 200 → 自检改 `curl -sk https://localhost`
 16. **飞书 webhook 整点限流静默丢消息**（v4.2）→ 每日内存报告 cron 09:00 整点撞飞书**租户级限流** `code=11232 frequency limited`，且脚本无重试 → 消息静默丢失。修复：项目根新增共享模块 `feishu_send.py`（统一发送 + 指数退避重试 0.5/1/2s），cron 挪到 **09:13** 避开整点高峰
 17. **公网扫描器打爆请求率+MySQL 查询率**（v4.3）→ GCP 台北 VM `34.80.5.60` 25 分钟打 8726 次，路径全是凭据泄露/SSRF 探测（`/.env`、`/.git/config`、`/actuator`、`169.254.169.254`），UA 伪装成 Perplexity/ChatGPT/Claude。**放大器**：nginx `try_files $uri $uri/ /index.php` 让任意未知路径都落 index.php 查 MySQL，扫描器每请求都放大成一次查询。**关键坑**：Docker 端口流量走 **FORWARD/DOCKER-USER 链、不过 INPUT 链**，封 INPUT 不生效，必须 `chain=DOCKER-USER`。修复：nginx 敏感路径 444 + 未知路径 `=404` 关放大器 + `limit_req` 限流 + **fail2ban 自动封禁**
+18. **服务器资源耗竭级联崩溃**（v4.4）→ 1.6Gi 内存跑 LNMP + 12 容器监控栈长期仅剩 ~300-400MiB 可用，snapd 死循环重启 523 次持续吃 CPU → swap thrash → 监控/MySQL/sshd/云助手**逐个被饿死**（**非经典 OOM**，无 oom-kill 记录）。**关键坑**：① mem_limit 只能防单容器 OOM，**防不住宿主级 swap thrash** ② 告警规则没有内存项 → 监控自己先死都没人知道。修复：停用 snapd（`systemctl disable --now snapd snapd.socket`）+ 新增 **LowMemory** 告警（可用内存 <300MiB 持续 10min → 飞书）
 
 ## 告警链路（三层监控 → 飞书）
 
@@ -60,7 +61,7 @@ Prometheus(本地)           kubectl -n monitoring port-forward svc/prometheus 9
 可用性  黑盒探活         → service_probe.py(直推)     → feishu-bridge → 飞书群
 ```
 
-- 告警规则：`HighCPUUsage` / `HighDiskUsage` / `High5xxRate` / `MySQLDown`
+- 告警规则：`HighCPUUsage` / `HighDiskUsage` / `High5xxRate` / `MySQLDown` / **`LowMemory`（v4.4，可用内存 <300MiB）**
 - 云服务器(compose)链路见 `07-cloud-monitoring/`；本地(k8s)链路见 `03-monitoring/manifests/` + `05-feishu-bridge/manifests/`
 - 真实飞书 webhook 统一填项目根 **`.env`**，**两端链路均已实测：飞书群真实收到告警** ✅
 
