@@ -163,16 +163,17 @@ header.site h1 { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap
 
   <!-- 项目信息卡：给招聘 HR 快速看懂技术栈 -->
   <section class="card proj">
-    <div class="proj-head">📦 项目信息 <span class="proj-ver">v4.4</span></div>
+    <div class="proj-head">📦 项目信息 <span class="proj-ver">v4.5</span></div>
     <div class="proj-grid">
       <div class="proj-item"><span class="k">架构</span><span class="v">Nginx → PHP-FPM → MySQL 8（Docker Compose 三容器）</span></div>
       <div class="proj-item"><span class="k">部署</span><span class="v">Docker + Kubernetes 上云 · 服务器只拉镜像 · 一键回滚</span></div>
       <div class="proj-item"><span class="k">可观测性</span><span class="v">Prometheus + Grafana 看板 · Alertmanager→飞书告警 · 黑盒探测 · Loki 日志 · fail2ban 自动封禁</span></div>
-      <div class="proj-item"><span class="k">CI/CD</span><span class="v">GitHub Actions 自动发布 · ACR 镜像仓库 · 单测质量门</span></div>
+      <div class="proj-item"><span class="k">CI/CD</span><span class="v">标准多阶段流水线 · 应用单测+集成冒烟 · 生产审批门 · sha 可追溯回滚</span></div>
     </div>
     <details class="versions">
-      <summary>版本记录（v1.0 → v4.4）</summary>
+      <summary>版本记录（v1.0 → v4.5）</summary>
       <ul>
+        <li><b>v4.5</b> 标准 CI/CD · 多阶段流水线 + 应用单测/集成冒烟 + 审批门</li>
         <li><b>v4.4</b> 资源耗竭加固 · 停 snapd + LowMemory 内存预警</li>
         <li><b>v4.3</b> 公网扫描防护 · nginx 加固 + fail2ban 自动封禁</li>
         <li><b>v4.2</b> 飞书推送加固 · 共享模块 + 限流重试</li>
@@ -226,7 +227,7 @@ header.site h1 { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap
   <?php endif; ?>
 </main>
 
-<footer class="foot">Powered by Docker + Kubernetes + Prometheus 监控 · <a href="https://github.com/chenxuanyeqwq/k8s-monitoring-project" target="_blank" rel="noopener">GitHub</a> · v4.4</footer>
+<footer class="foot">Powered by Docker + Kubernetes + Prometheus 监控 · <a href="https://github.com/chenxuanyeqwq/k8s-monitoring-project" target="_blank" rel="noopener">GitHub</a> · v4.5</footer>
 
 <script>
 // 友好时间：把 data-time(ISO) 转成"刚刚/x 分钟前/昨天"等
