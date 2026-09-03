@@ -19,8 +19,9 @@
     ├─ loki             :3100  内部  日志存储（Grafana 家，单机精简，7 天保留）—— v3.5 日志采集
     └─ promtail         :9080  内部  读 docker.sock 自动发现所有容器 → 收 stdout/stderr 日志推 Loki
 └─ 宿主机 cron
-    ├─ service_probe.py   每 5 分钟  黑盒探公网入口（06-blackbox，挪来常驻）
-    └─ memory_report.py   每天 9:00  读 /proc/meminfo 推飞书每日内存报告
+    ├─ service_probe.py          每 5 分钟  黑盒探公网入口（06-blackbox，挪来常驻）
+    ├─ memory_report.py          每天 9:13  读 /proc/meminfo 推飞书每日内存报告
+    └─ restore-docker-stack.sh   @reboot   开机对齐拉起 01-lnmp + 本模块（防 Docker 重启漏拉）
 ```
 
 ## 启动（云服务器上）
@@ -71,6 +72,21 @@ cd /opt/k8s-project/07-cloud-monitoring
 docker compose -f docker-compose.monitoring.yml up -d   # 拉 loki/promtail 镜像
 docker restart cm-grafana                                # 加载 Loki 数据源
 ```
+
+## 重启自动恢复（@reboot 兜底，2026-09-03 ✅）
+
+Docker 的 `restart: unless-stopped` **不保证**重启后容器全部拉起 —— 2026-09-03 服务器重启后 `cm-prometheus` 被漏掉（关机时被优雅 SIGTERM → exited，Docker 只恢复了其余 11 个），Grafana 面板报 `lookup prometheus ... server misbehaving`。因此加了**独立于 Docker 语义的兜底**：`restore-docker-stack.sh`，开机等 Docker 就绪后对 01-lnmp + 本模块各跑一次 `compose up -d`（幂等，不干扰已运行容器）。本模块目录是源码真源，服务器 `/usr/local/bin/` 为安装位置。
+
+**一次性安装**（已在 8.217.195.115 落地）：
+```bash
+cp 07-cloud-monitoring/restore-docker-stack.sh /usr/local/bin/
+chmod +x /usr/local/bin/restore-docker-stack.sh
+# 追加到 root crontab（勿覆盖已有条目）：
+( crontab -l | grep -v 'restore-docker-stack.sh' ; echo '@reboot /usr/local/bin/restore-docker-stack.sh >/dev/null 2>&1' ) | crontab -
+```
+日志：`/var/log/restore-docker-stack.log`；手动试跑：`/usr/local/bin/restore-docker-stack.sh`。
+
+**坑**：01-lnmp 的 php 镜像 `${ACR_REGISTRY}/fchen/lnmp-php:${IMAGE_TAG}` 只在 deploy 环境有值，cron 下为空会让 compose 插值成 `/fchen/lnmp-php:latest`（invalid reference format）。脚本从运行中 `lnmp-php` 的 `{{.Config.Image}}` 反推 `ACR_REGISTRY` + `IMAGE_TAG=当前 sha`，只启动原容器、不 pull 不 recreate 不换版本。
 
 ## 关键点
 
